@@ -69,6 +69,7 @@ class Fetcher:
         self.robots_locks = {}
         self.cooldowns = {}
         self.page_locks = {}
+        self.browser_locks = {}
 
     async def allowed(self, url, region=None):
         u, _ = validate_url(url)
@@ -130,7 +131,7 @@ class Fetcher:
             selected = self.http.router.choose(current, region)
             await self.http.require_region(selected)
             host = urlsplit(current).hostname
-            if self.cooldowns.get(host, 0) > time.monotonic():
+            if self.cooldowns.get((selected, host), 0) > time.monotonic():
                 raise AccessError("source_cooldown")
             if robots:
                 await self.allowed(current, region)
@@ -161,7 +162,7 @@ class Fetcher:
                     retry = response.headers.get("retry-after", "")
                     if retry.isdigit():
                         wait = min(3600, max(wait, int(retry)))
-                    self.cooldowns[host] = time.monotonic() + wait
+                    self.cooldowns[selected, host] = time.monotonic() + wait
                 raise AccessError(error)
             return response, current
         raise AccessError("redirect_limit")
@@ -176,32 +177,48 @@ class Fetcher:
             page = Page(url=url, source="public_page", status="unavailable", region=selected)
             try:
                 # Includes robots, redirects and DNS in the total wall-clock budget.
-                from .browser_capture import challenge_policy
+                from .browser_capture import capture_timeout, challenge_policy
 
                 budget = self.settings.timeout * 3
-                if challenge_policy(self.settings, url):
-                    budget += self.settings.browser_timeout
+                configured = challenge_policy(self.settings, url)
+                if not self.marketplace_enabled(url):
+                    raise AccessError("source_policy_denied")
+                if configured:
+                    budget += capture_timeout(self.settings, url)
                 async with asyncio.timeout(budget):
-                    try:
-                        response, final_url = await self.raw(url, region)
-                    except AccessError as initial_error:
-                        retryable = str(initial_error) in {
-                            "captcha_or_access_challenge",
-                            "http_403",
-                            "http_439",
-                        }
-                        if not (
-                            retryable and self.settings.browser_url and challenge_policy(self.settings, url)
-                        ):
-                            raise
-                        payload = await self.worker(
-                            "/capture", {"url": url, "region": selected}, self.settings.browser_url
+                    payload = None
+                    if configured and configured[1].get("backend") == "camoufox":
+                        if not self.settings.browser_url:
+                            raise AccessError("camoufox_not_configured")
+                        if self.cooldowns.get((selected, urlsplit(url).hostname), 0) > time.monotonic():
+                            raise AccessError("source_cooldown")
+                        lock = self.browser_locks.setdefault(
+                            (selected, urlsplit(url).hostname), asyncio.Lock()
                         )
+                        async with lock:
+                            payload = await self.worker(
+                                "/capture", {"url": url, "region": selected}, self.settings.browser_url
+                            )
+                    else:
+                        try:
+                            response, final_url = await self.raw(url, region)
+                        except AccessError as initial_error:
+                            retryable = str(initial_error) in {
+                                "captcha_or_access_challenge",
+                                "http_403",
+                                "http_439",
+                            }
+                            if not (retryable and self.settings.browser_url and configured):
+                                raise
+                            payload = await self.worker(
+                                "/capture", {"url": url, "region": selected}, self.settings.browser_url
+                            )
+                    if payload is not None:
                         final_url = payload["final_url"]
                         validate_url(final_url)
                         response = httpx.Response(payload["http_status"], text=payload["html"])
                         page.extractor = payload["extractor"]
-                        self.cooldowns.pop(urlsplit(url).hostname, None)
+                        self.cooldowns.pop((selected, urlsplit(url).hostname), None)
                     page.http_status = response.status_code
                     page.final_url = final_url
                     page.title, page.text, page.structured_data = extract(response.text, final_url)
@@ -256,6 +273,17 @@ class Fetcher:
                 else:
                     page.status = "unavailable"
                     page.error = str(error) if isinstance(error, AccessError) else "timeout"
+                    if page.error in {
+                        "http_403",
+                        "http_429",
+                        "captcha_or_access_challenge",
+                        "captcha_unresolved",
+                    }:
+                        host = urlsplit(url).hostname
+                        key_region = (selected, host)
+                        self.cooldowns[key_region] = max(
+                            self.cooldowns.get(key_region, 0), time.monotonic() + 300
+                        )
                     match = re.search(r"http_(\d{3})", page.error)
                     if match:
                         page.http_status = int(match[1])
@@ -278,7 +306,13 @@ class Fetcher:
         if not self.settings.worker_token:
             raise AccessError("worker_auth_not_configured")
         try:
-            timeout = self.settings.browser_timeout + 3 if path == "/capture" else self.settings.timeout * 2
+            from .browser_capture import capture_timeout
+
+            timeout = (
+                capture_timeout(self.settings, payload["url"]) + 3
+                if path == "/capture"
+                else self.settings.timeout * 2
+            )
             async with httpx.AsyncClient(timeout=timeout, trust_env=False) as client:
                 async with client.stream(
                     "POST",

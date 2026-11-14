@@ -17,6 +17,7 @@ class Settings:
     native_search_marketplaces: list[str] = field(default_factory=list)
     automatic_challenges: dict[str, dict] = field(default_factory=dict)
     browser_timeout: float = 30
+    camoufox_python: str = ""
     condition_detail_limit: int = 4
     review_domains: list[str] = field(default_factory=list)
     ru_proxy: str = ""
@@ -76,6 +77,7 @@ class Settings:
             "extraction_url",
             "browser_url",
             "worker_token",
+            "camoufox_python",
         ):
             if "RESEARCH_" + key.upper() in os.environ:
                 data[key] = os.environ["RESEARCH_" + key.upper()]

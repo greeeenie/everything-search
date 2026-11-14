@@ -24,13 +24,20 @@ native_search_marketplaces: [avito, yandex_market]
 # Protocol paths are used only to complete the site's own computational challenge.
 automatic_challenges:
   avito.ru:
+    backend: camoufox
+    browser_version: 158.0.1-beta.41
+    timeout: 75
     domains: [avito.ru, avito.st]
     protocol_paths: [/web/3/firewallPow/]
   ozon.ru:
+    backend: camoufox
+    browser_version: 158.0.1-beta.41
+    timeout: 75
     domains: [ozon.ru, ozone.ru]
     protocol_paths: [/abt/result]
-    asset_paths: [/s3/abt-challenge/]
+    asset_paths: [/s3/abt-challenge/, /s3/ozon-fonts/]
 browser_timeout: 30
+camoufox_python: /opt/research-ozon/bin/python
 # Direct RU sockets run under the UID bypass in deploy/pi-egress.py.
 ru_proxy: ""
 eu_proxy: socks5://127.0.0.1:10808

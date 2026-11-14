@@ -1,7 +1,7 @@
 """Loopback-only extraction and bounded browser worker.
 
-Chromium has a deliberately unreachable proxy. Its intercepted GET requests
-are fulfilled exclusively through SafeHTTP, including DNS pinning and robots.
+Text extraction, HTTP-backed rendering and regional browser capture have
+separate bounded paths. Native browser capture uses a loopback CONNECT guard.
 """
 
 import argparse
@@ -83,12 +83,19 @@ class Worker:
             return JSONResponse({"error": "browser_unavailable"}, status_code=422)
 
     async def capture(self, request):
-        from .browser_capture import capture_page
+        from .browser_capture import capture_with_camoufox, capture_page, capture_timeout, challenge_policy
 
         try:
             payload = await bounded_json(request, 10000)
-            async with asyncio.timeout(self.settings.browser_timeout), self.semaphore:
-                result = await capture_page(self.fetcher, payload["url"], payload.get("region"))
+            url, region = payload["url"], payload.get("region")
+            configured = challenge_policy(self.settings, url)
+            if not self.fetcher.marketplace_enabled(url):
+                raise AccessError("source_policy_denied")
+            async with asyncio.timeout(capture_timeout(self.settings, url)), self.semaphore:
+                if configured and configured[1].get("backend") == "camoufox":
+                    result = await capture_with_camoufox(self.settings, url, region)
+                else:
+                    result = await capture_page(self.fetcher, url, region)
             return JSONResponse(result)
         except AccessError as error:
             return JSONResponse({"error": str(error)}, status_code=422)

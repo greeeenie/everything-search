@@ -1,0 +1,74 @@
+{
+  "checked_at": "2026-11-14T14:50:05.472556+00:00",
+  "products": [
+    {
+      "id": "fe465f7a24a99c95c7cd",
+      "name": "Wanbo Cube 2 Pro",
+      "brand": "Wanbo",
+      "model": "Wanbo Cube 2 Pro",
+      "identity_basis": "exact query in structured Product.name",
+      "specifications": {},
+      "specification_conflicts": {},
+      "variants": [],
+      "sources": [
+        {
+          "url": "https://www.ozon.ru/product/proektor-wanbo-projector-cube-2-pro-belyy-3456542658/",
+          "source": "public_page",
+          "checked_at": "2026-11-14T14:49:39.124980+00:00",
+          "status": "verified",
+          "region": "RU",
+          "error": null,
+          "http_status": 200,
+          "excerpts": [
+            "Product.name=Проектор Wanbo Projector Cube 2 Pro белый; model=not supplied"
+          ]
+        }
+      ]
+    }
+  ],
+  "offers": [
+    {
+      "url": "https://www.ozon.ru/product/proektor-wanbo-projector-cube-2-pro-belyy-3456542658/",
+      "product_id": "fe465f7a24a99c95c7cd",
+      "title": "Проектор Wanbo Projector Cube 2 Pro белый",
+      "marketplace": "ozon",
+      "seller": null,
+      "price": "25207",
+      "currency": "RUB",
+      "price_conditions": [],
+      "price_scope": "public",
+      "condition": "unknown",
+      "availability": "in_stock",
+      "delivery": {},
+      "delivery_city": null,
+      "delivery_status": "unconfirmed",
+      "shipping_cost": null,
+      "total_price": null,
+      "variants": {},
+      "evidence": {
+        "url": "https://www.ozon.ru/product/proektor-wanbo-projector-cube-2-pro-belyy-3456542658/",
+        "source": "public_page",
+        "checked_at": "2026-11-14T14:49:39.124980+00:00",
+        "status": "verified",
+        "region": "RU",
+        "error": null,
+        "http_status": 200,
+        "excerpts": [
+          "Product.name=Проектор Wanbo Projector Cube 2 Pro белый; model=not supplied",
+          "Offer.url=https://www.ozon.ru/product/proektor-wanbo-projector-cube-2-pro-belyy-3456542658/; seller=None; price=25207; currency=RUB; availability=InStock; condition="
+        ]
+      }
+    }
+  ],
+  "extraction_error": null,
+  "page": {
+    "url": "https://www.ozon.ru/product/proektor-wanbo-projector-cube-2-pro-belyy-3456542658/",
+    "final_url": "https://www.ozon.ru/product/proektor-wanbo-projector-cube-2-pro-belyy-3456542658/",
+    "source": "public_page",
+    "checked_at": "2026-11-14T14:49:39.124980+00:00",
+    "status": "verified",
+    "region": "RU",
+    "http_status": 200,
+    "extractor": "camoufox+guarded-egress+automatic-check"
+  }
+}

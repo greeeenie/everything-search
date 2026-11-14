@@ -6,7 +6,7 @@ import json
 from .config import Settings
 from .discovery import Discovery, canonical_url
 from .fetching import Fetcher
-from .models import SearchHit, now
+from .models import Page, SearchHit, now
 from .network import EgressRouter
 from .shopping import adapter_for, model_matches, product_matches, review_excerpts
 from .store import Store
@@ -60,6 +60,13 @@ class Engine:
                     page_excerpts=page.excerpts,
                     final_url=page.final_url,
                 )
+                try:
+                    products, offers = adapter_for(page.final_url or hit.url).parse(page)
+                    if products:
+                        row["products"] = [product.model_dump(mode="json") for product in products]
+                        row["offers"] = [offer.model_dump(mode="json") for offer in offers]
+                except (ValueError, TypeError, KeyError):
+                    row["product_extraction_error"] = "parsing_error"
             else:
                 row["fetch_error"] = page.error
             result["results"].append(row)
@@ -154,6 +161,16 @@ class Engine:
         )
 
         async def read(hit):
+            adapter = adapter_for(hit.url)
+            if hit.source != "marketplace_search" and not adapter.is_offer_url(hit.url):
+                page = Page(
+                    url=hit.url,
+                    source="url_classification",
+                    status="unavailable",
+                    region=EgressRouter(self.settings).choose(hit.url, region),
+                    error="not_product_offer_url",
+                )
+                return hit, page, ([], [])
             page = await self.fetcher.read(hit.url, region, dynamic=dynamic)
             return hit, page, adapter_for(page.final_url or hit.url).parse(page, model)
 

@@ -51,7 +51,7 @@ async def test_live_browser_guard_uses_both_exits():
     assert exits["RU"] != exits["EU"]
 
 
-@pytest.mark.parametrize("marketplace", ["yandex_market", "avito"])
+@pytest.mark.parametrize("marketplace", ["yandex_market", "avito", "ozon"])
 async def test_live_public_product_has_evidenced_price(marketplace):
     result = await call(
         "search_products",
@@ -87,3 +87,18 @@ async def test_live_marketplace_restriction_is_explicit():
         assert page["error"] and not result["offers"]
     else:
         assert page["status"] == "verified"
+
+
+async def test_live_ozon_card_uses_automatic_browser():
+    result = await call(
+        "get_product_details",
+        {
+            "url": "https://www.ozon.ru/product/proektor-wanbo-projector-cube-2-pro-belyy-3456542658/",
+            "model": "Wanbo Cube 2 Pro",
+            "region": "RU",
+        },
+    )
+    assert result["page"]["status"] == "verified", result["page"].get("error")
+    assert result["page"]["extractor"].startswith("camoufox")
+    assert result["offers"] and all(offer["evidence"]["status"] == "verified" for offer in result["offers"])
+    assert any(offer["price"] is not None and offer["currency"] == "RUB" for offer in result["offers"])

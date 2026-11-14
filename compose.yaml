@@ -39,7 +39,11 @@ services:
     user: "${RESEARCH_UID:?Set the research-v2 UID}:${RESEARCH_GID:?Set the research-v2 GID}"
     network_mode: host
     env_file: .env
-    environment: {HOME: /tmp, RESEARCH_CONFIG: /app/config/egress.yaml}
+    environment:
+      HOME: /data
+      RESEARCH_CONFIG: /app/config/egress.yaml
+      RESEARCH_DATABASE: /data/research.sqlite3
+    volumes: ["${RESEARCH_DATA_DIR:-./data}:/data"]
     read_only: true
     tmpfs: [/tmp]
     shm_size: 256m

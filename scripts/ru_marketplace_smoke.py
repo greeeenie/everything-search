@@ -30,7 +30,7 @@ async def main():
         (
             "get_product_details",
             {
-                "url": "https://www.ozon.ru/product/proektor-dlya-filmov-portativnyy-wanbo-cube-2-pro-s-golosovym-upravleniem-android-11-yarkostyu-500-3070977459/",
+                "url": "https://www.ozon.ru/product/proektor-wanbo-projector-cube-2-pro-belyy-3456542658/",
                 "model": "Wanbo Cube 2 Pro",
                 "region": "RU",
             },
@@ -100,7 +100,7 @@ async def main():
                 print("avito offer details", result.isError, flush=True)
             result = await session.call_tool(
                 "compare_prices",
-                {"model": "Wanbo Cube 2 Pro", "marketplaces": ["avito", "yandex_market"], "city": "Омск"},
+                {"model": "Wanbo Cube 2 Pro", "marketplaces": ["ozon", "avito", "yandex_market"], "city": "Омск"},
             )
             report["checks"].append(
                 {"tool": "compare_prices", "is_error": result.isError, "result": result.structuredContent}

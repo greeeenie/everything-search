@@ -41,3 +41,13 @@ indexed["candidates"] = [next(row for row in shopping["candidates"] if "ozon.ru/
 (destination / "indexed-only-response.json").write_text(
     json.dumps(indexed, ensure_ascii=False, indent=2), encoding="utf-8"
 )
+
+ozon = json.loads(Path("artifacts/private/research-ozon-mcp-card.json").read_text(encoding="utf-8"))["result"]
+compact = {key: ozon[key] for key in ("checked_at", "products", "offers", "extraction_error")}
+compact["page"] = {
+    key: ozon["page"][key]
+    for key in ("url", "final_url", "source", "checked_at", "status", "region", "http_status", "extractor")
+}
+(destination / "ozon-verified-response.json").write_text(
+    json.dumps(compact, ensure_ascii=False, indent=2), encoding="utf-8"
+)

@@ -8,6 +8,7 @@ if ! id research-v2 >/dev/null 2>&1; then
 fi
 python3 -m venv /opt/research-v2/.venv
 /opt/research-v2/.venv/bin/pip install --disable-pip-version-check '/opt/research-v2[extract,browser]'
+sh /opt/research-v2/deploy/bootstrap-ozon.sh
 if ! id searxng-research >/dev/null 2>&1; then
     useradd --system --create-home --home-dir /var/lib/searxng-research --shell /usr/sbin/nologin searxng-research
 fi

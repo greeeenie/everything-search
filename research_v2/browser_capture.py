@@ -1,7 +1,10 @@
 """Automatic anonymous browser checks for explicitly configured sources."""
 
 import asyncio
+import json
+import os
 from pathlib import Path
+import signal
 
 from .browser_network import BrowserNetwork
 from .fetching import blocked_reason, extract
@@ -19,6 +22,72 @@ def challenge_policy(settings, url):
         ),
         None,
     )
+
+
+def capture_timeout(settings, url):
+    configured = challenge_policy(settings, url)
+    timeout = (
+        configured[1].get("timeout", settings.browser_timeout) if configured else settings.browser_timeout
+    )
+    return min(120, max(5, float(timeout)))
+
+
+async def capture_with_camoufox(settings, url, region):
+    """The optional Firefox environment has its own compatible Playwright version."""
+    configured = challenge_policy(settings, url)
+    if not configured or configured[1].get("backend") != "camoufox":
+        raise AccessError("source_policy_denied")
+    if not settings.camoufox_python or not Path(settings.camoufox_python).is_file():
+        raise AccessError("camoufox_not_installed")
+    environment = {
+        key: value
+        for key, value in os.environ.items()
+        if key in {"PATH", "HOME", "LANG", "XDG_CACHE_HOME", "RESEARCH_CONFIG", "RESEARCH_DATABASE"}
+    }
+    environment.update(
+        PYTHONPATH=str(Path(__file__).resolve().parents[1]),
+        PYTHONUTF8="1",
+        RESEARCH_EU_PROXY=settings.eu_proxy,
+        RESEARCH_RU_PROXY=settings.ru_proxy,
+        RESEARCH_DATABASE=settings.database,
+    )
+    process = await asyncio.create_subprocess_exec(
+        settings.camoufox_python,
+        "-m",
+        "research_v2.camoufox_capture",
+        stdin=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.DEVNULL,
+        env=environment,
+        start_new_session=True,
+    )
+    try:
+        process.stdin.write(json.dumps({"url": url, "region": region}).encode())
+        await process.stdin.drain()
+        process.stdin.close()
+        chunks, size = [], 0
+        while chunk := await process.stdout.read(65536):
+            size += len(chunk)
+            if size > settings.max_bytes * 2 + 65536:
+                raise AccessError("worker_response_too_large")
+            chunks.append(chunk)
+        await process.wait()
+        try:
+            result = json.loads(b"".join(chunks))
+        except ValueError:
+            raise AccessError("camoufox_unavailable") from None
+        if result.get("error"):
+            raise AccessError(result["error"])
+        if process.returncode:
+            raise AccessError("camoufox_unavailable")
+        return result
+    finally:
+        if process.returncode is None:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            await process.wait()
 
 
 def is_challenge_protocol(url, main_host, policy):

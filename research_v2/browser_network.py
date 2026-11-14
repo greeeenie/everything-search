@@ -1,7 +1,7 @@
-"""Short-lived loopback CONNECT proxy for Chromium's own HTTPS stack.
+"""Short-lived loopback CONNECT proxy for the browser's own HTTPS stack.
 
 DNS is checked and pinned before opening each tunnel. Browser requests retain
-Chromium TLS while sharing the fixed regional exits used by ordinary fetching.
+native TLS while sharing the fixed regional exits used by ordinary fetching.
 """
 
 import asyncio
