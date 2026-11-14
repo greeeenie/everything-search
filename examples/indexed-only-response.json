@@ -2,15 +2,15 @@
   "query": "Wanbo Cube 2 Pro",
   "model": "Wanbo Cube 2 Pro",
   "city": "Омск",
-  "checked_at": "2026-11-14T08:47:18.492037+00:00",
+  "checked_at": "2026-11-14T13:36:28.567908+00:00",
+  "errors": [],
   "products": [],
   "offers": [],
-  "errors": [],
   "candidates": [
     {
       "url": "https://www.ozon.ru/product/portativnyy-proektor-wanbo-projector-cube-2-pro-android-11-1080p-podderzhka-4k-yarkost-500-2835015048/",
       "source": "searxng",
-      "checked_at": "2026-11-14T08:47:18.345276+00:00",
+      "checked_at": "2026-11-14T13:36:28.499839+00:00",
       "status": "indexed_only",
       "region": "RU",
       "error": null,
@@ -19,9 +19,9 @@
       "title": "Портативный проектор Wanbo Projector Cube 2 Pro (Android 11 ...",
       "search_excerpt": "Домашний проектор Wanbo Cube 2 Pro работает на Android TV 11 и поддерживает установку более 7000 приложений из Google Play, включая Netflix, Prime Video и другие сервисы.",
       "fetch_status": "unavailable",
-      "fetch_error": "robots_unavailable_http_307",
-      "fetch_checked_at": "2026-11-14T08:47:18.492431+00:00",
-      "extraction_error": "robots_unavailable_http_307"
+      "fetch_error": "source_cooldown",
+      "fetch_checked_at": "2026-11-14T13:36:28.652049+00:00",
+      "extraction_error": "source_cooldown"
     }
   ]
 }

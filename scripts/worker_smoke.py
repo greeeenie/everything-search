@@ -25,6 +25,9 @@ async def main():
                 },
             ),
             ("/render", {"url": "file:///etc/passwd", "region": "EU"}),
+            ("/capture", {"url": "file:///etc/passwd", "region": "RU"}),
+            ("/capture", {"url": "https://127.0.0.1/", "region": "RU"}),
+            ("/capture", {"url": "https://example.com/", "region": "EU"}),
             ("/render", {"url": "https://quotes.toscrape.com/js/", "region": "EU"}),
         ]
         for path, payload in cases:

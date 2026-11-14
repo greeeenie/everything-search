@@ -1,25 +1,26 @@
 {
-  "checked_at": "2026-11-14T08:57:36.993119+00:00",
+  "checked_at": "2026-11-14T13:36:45.189642+00:00",
   "products": [
     {
-      "id": "54c01dd0646843e26676",
-      "name": "Raspberry Pi 5",
+      "id": "fe465f7a24a99c95c7cd",
+      "name": "Wanbo Cube 2 Pro",
       "brand": null,
-      "model": "Raspberry Pi 5",
+      "model": "Wanbo Cube 2 Pro",
       "identity_basis": "exact query in structured Product.name",
       "specifications": {},
+      "specification_conflicts": {},
       "variants": [],
       "sources": [
         {
-          "url": "https://www.adafruit.com/product/5813",
+          "url": "https://www.avito.ru/moskva/audio_i_video/proektor_wanbo_cube_2_pro_8148593940",
           "source": "public_page",
-          "checked_at": "2026-11-14T08:57:30.103601+00:00",
+          "checked_at": "2026-11-14T13:36:29.120710+00:00",
           "status": "verified",
-          "region": "EU",
+          "region": "RU",
           "error": null,
           "http_status": 200,
           "excerpts": [
-            "Product.name=Raspberry Pi 5 - 8 GB RAM; model=not supplied"
+            "Product.name=Проектор Wanbo Cube 2 Pro; model=not supplied"
           ]
         }
       ]
@@ -27,13 +28,13 @@
   ],
   "offers": [
     {
-      "url": "https://adafruit.com/product/5813",
-      "product_id": "54c01dd0646843e26676",
-      "title": "Raspberry Pi 5 - 8 GB RAM",
-      "marketplace": "public_web",
+      "url": "https://www.avito.ru/moskva/audio_i_video/proektor_wanbo_cube_2_pro_8148593940",
+      "product_id": "fe465f7a24a99c95c7cd",
+      "title": "Проектор Wanbo Cube 2 Pro",
+      "marketplace": "avito",
       "seller": null,
-      "price": "200",
-      "currency": "USD",
+      "price": "15082",
+      "currency": "RUB",
       "price_conditions": [],
       "price_scope": "public",
       "condition": "new",
@@ -43,32 +44,30 @@
       "delivery_status": "unconfirmed",
       "shipping_cost": null,
       "total_price": null,
-      "variants": {
-        "capacity_labels": "8 gb"
-      },
+      "variants": {},
       "evidence": {
-        "url": "https://www.adafruit.com/product/5813",
+        "url": "https://www.avito.ru/moskva/audio_i_video/proektor_wanbo_cube_2_pro_8148593940",
         "source": "public_page",
-        "checked_at": "2026-11-14T08:57:30.103601+00:00",
+        "checked_at": "2026-11-14T13:36:29.120710+00:00",
         "status": "verified",
-        "region": "EU",
+        "region": "RU",
         "error": null,
         "http_status": 200,
         "excerpts": [
-          "Product.name=Raspberry Pi 5 - 8 GB RAM; model=not supplied",
-          "Offer.url=https://adafruit.com/product/5813; seller=None; price=200; currency=USD; availability=InStock; condition=NewCondition"
+          "Product.name=Проектор Wanbo Cube 2 Pro; model=not supplied",
+          "Offer.url=https://www.avito.ru/moskva/audio_i_video/proektor_wanbo_cube_2_pro_8148593940; seller=None; price=15082; currency=RUB; availability=InStock; condition=NewCondition"
         ]
       }
     }
   ],
   "extraction_error": null,
   "page": {
-    "url": "https://www.adafruit.com/product/5813",
-    "final_url": "https://www.adafruit.com/product/5813",
+    "url": "https://www.avito.ru/moskva/audio_i_video/proektor_wanbo_cube_2_pro_8148593940",
+    "final_url": "https://www.avito.ru/moskva/audio_i_video/proektor_wanbo_cube_2_pro_8148593940",
     "source": "public_page",
-    "checked_at": "2026-11-14T08:57:30.103601+00:00",
+    "checked_at": "2026-11-14T13:36:29.120710+00:00",
     "status": "verified",
-    "region": "EU",
+    "region": "RU",
     "http_status": 200
   }
 }

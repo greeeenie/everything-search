@@ -6,6 +6,7 @@ are fulfilled exclusively through SafeHTTP, including DNS pinning and robots.
 
 import argparse
 import asyncio
+import logging
 from pathlib import Path
 
 from bs4 import BeautifulSoup
@@ -40,6 +41,7 @@ class Worker:
         self.settings = settings
         self.fetcher = Fetcher(settings, Store(":memory:"))
         self.semaphore = asyncio.Semaphore(1)
+        self.extraction_semaphore = asyncio.Semaphore(2)
 
     async def extract(self, request):
         try:
@@ -47,8 +49,8 @@ class Worker:
             html = payload.get("html")
             if not isinstance(html, str) or len(html.encode()) > self.settings.max_bytes:
                 raise AccessError("invalid_html")
-            async with self.semaphore:
-                text = await asyncio.wait_for(asyncio.to_thread(self.extract_html, html), timeout=15)
+            async with asyncio.timeout(15), self.extraction_semaphore:
+                text = await asyncio.to_thread(self.extract_html, html)
             return JSONResponse({"text": text[:30000], "extractor": "crawl4ai-lxml"})
         except (AccessError, TimeoutError) as error:
             return JSONResponse({"error": str(error) or "timeout"}, status_code=422)
@@ -59,7 +61,10 @@ class Worker:
     def extract_html(html):
         from crawl4ai import LXMLWebScrapingStrategy
 
-        result = LXMLWebScrapingStrategy().scrap("https://source.invalid/", html)
+        soup = BeautifulSoup(html, "html.parser")
+        for hidden in soup(["script", "style", "noframes", "template"]):
+            hidden.decompose()
+        result = LXMLWebScrapingStrategy().scrap("https://source.invalid/", str(soup))
         cleaned = result.get("cleaned_html", "") if isinstance(result, dict) else result.cleaned_html
         return BeautifulSoup(cleaned, "html.parser").get_text("\n", strip=True)
 
@@ -68,12 +73,29 @@ class Worker:
             payload = await bounded_json(request, 10000)
             url, region = payload["url"], payload.get("region")
             validate_url(url)
-            async with self.semaphore, asyncio.timeout(35):
+            async with asyncio.timeout(35), self.semaphore:
                 result = await self.render_page(url, region)
             return JSONResponse(result)
         except (AccessError, TimeoutError, KeyError, ValueError):
             return JSONResponse({"error": "render_unavailable"}, status_code=422)
-        except Exception:
+        except Exception as error:
+            logging.getLogger(__name__).warning("Browser render failed (%s)", type(error).__name__)
+            return JSONResponse({"error": "browser_unavailable"}, status_code=422)
+
+    async def capture(self, request):
+        from .browser_capture import capture_page
+
+        try:
+            payload = await bounded_json(request, 10000)
+            async with asyncio.timeout(self.settings.browser_timeout), self.semaphore:
+                result = await capture_page(self.fetcher, payload["url"], payload.get("region"))
+            return JSONResponse(result)
+        except AccessError as error:
+            return JSONResponse({"error": str(error)}, status_code=422)
+        except TimeoutError:
+            return JSONResponse({"error": "browser_timeout"}, status_code=422)
+        except Exception as error:
+            logging.getLogger(__name__).warning("Browser capture failed (%s)", type(error).__name__)
             return JSONResponse({"error": "browser_unavailable"}, status_code=422)
 
     async def render_page(self, url, region):
@@ -157,6 +179,7 @@ def create_app(settings=None):
         routes=[
             Route("/extract", worker.extract, methods=["POST"]),
             Route("/render", worker.render, methods=["POST"]),
+            Route("/capture", worker.capture, methods=["POST"]),
             Route("/health", health),
         ]
     )

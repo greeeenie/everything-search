@@ -1,4 +1,4 @@
-"""Live public-source smoke run. No fixed prices or CAPTCHA retries.
+"""Live public-source smoke run. No fixed expected prices.
 
 Run on the selected host as the Research service user. Reports failures and
 access restrictions explicitly, writes a dated JSON artifact when requested.

@@ -6,7 +6,7 @@
 {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"compare_prices","arguments":{"model":"Wanbo Cube 2 Pro","city":"Омск"}}}
 ```
 
-`verified-product-response.json` содержит сокращённый ответ живой проверки публичной карточки Adafruit. Цена относится к указанному `checked_at`. `indexed-only-response.json` показывает сокращённый ответ при ограниченном доступе к карточке Ozon.
+`verified-product-response.json` содержит сокращённый ответ живой проверки отдельного объявления Avito. `marketplace-search-response.json` показывает предложения Avito и Яндекс Маркета, объединённые по модели. Цены относятся к указанному `checked_at`. Условия оплаты и неизвестные значения сохраняются. `indexed-only-response.json` показывает сокращённый ответ при ограниченном доступе к карточке Ozon.
 
 Для ChatGPT подойдут запросы следующего вида.
 

@@ -19,8 +19,21 @@ marketplaces:
   yandex_market: market.yandex.ru
 review_domains: [4pda.to, forum.ixbt.com, reddit.com, youtube.com]
 enabled_marketplaces: [ozon, avito, yandex_market]
+native_search_marketplaces: [avito, yandex_market]
+# Anonymous browser checks are explicitly authorized. Content still follows robots.
+# Protocol paths are used only to complete the site's own computational challenge.
+automatic_challenges:
+  avito.ru:
+    domains: [avito.ru, avito.st]
+    protocol_paths: [/web/3/firewallPow/]
+  ozon.ru:
+    domains: [ozon.ru, ozone.ru]
+    protocol_paths: [/abt/result]
+    asset_paths: [/s3/abt-challenge/]
+browser_timeout: 30
 # Direct RU sockets run under the UID bypass in deploy/pi-egress.py.
 ru_proxy: ""
 eu_proxy: socks5://127.0.0.1:10808
 verify_egress: true
 expected_countries: {RU: RU, EU: LV}
+max_bytes: 8000000

@@ -3,3 +3,4 @@ httpx[socks]==0.28.1
 beautifulsoup4==4.15.0
 PyYAML==6.0.3
 uvicorn==0.54.0
+protego==0.7.0

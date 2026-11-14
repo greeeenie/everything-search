@@ -3,16 +3,17 @@ import json
 import re
 import time
 from urllib.parse import urljoin, urlsplit
-from urllib.robotparser import RobotFileParser
 
 from bs4 import BeautifulSoup
 import httpx
+from protego import Protego
 
 from .models import Page
+from .shopping import adapter_for, has_type, objects
 from .network import AccessError, SafeHTTP, host_matches, validate_url
 
 
-def extract(html):
+def extract(html, url=None):
     soup = BeautifulSoup(html, "html.parser")
     title = soup.title.get_text(" ", strip=True) if soup.title else ""
     nodes = []
@@ -22,7 +23,9 @@ def extract(html):
         except (ValueError, TypeError):
             continue
         nodes.extend(data if isinstance(data, list) else [data] if isinstance(data, dict) else [])
-    for tag in soup(["script", "style", "noscript", "nav", "footer"]):
+    if url and not any(has_type(node, "Product") for node in objects(nodes)):
+        nodes.extend(adapter_for(url).public_products(soup, url))
+    for tag in soup(["script", "style", "noscript", "nav", "footer", "noframes", "template"]):
         tag.decompose()
     return title, soup.get_text("\n", strip=True), nodes
 
@@ -38,6 +41,7 @@ def blocked_reason(status, title, text):
             "captcha challenge",
             "докажите, что вы не робот",
             "checking your browser",
+            "нужна небольшая проверка браузера",
         )
     ):
         return "captcha_or_access_challenge"
@@ -62,6 +66,7 @@ class Fetcher:
         self.store = store
         self.http = http or SafeHTTP(settings)
         self.robots = {}
+        self.robots_locks = {}
         self.cooldowns = {}
         self.page_locks = {}
 
@@ -69,28 +74,52 @@ class Fetcher:
         u, _ = validate_url(url)
         origin = f"{u.scheme}://{u.netloc}"
         key = (origin, self.http.router.choose(url, region))
-        cached = self.robots.get(key)
-        if not cached or cached[0] < time.monotonic():
-            response = await self.http.get(origin + "/robots.txt", region)
-            if response.status_code in {404, 410}:
-                parser = None
-            elif response.status_code != 200:
-                raise AccessError(f"robots_unavailable_http_{response.status_code}")
+        async with self.robots_locks.setdefault(key, asyncio.Lock()):
+            cached = self.robots.get(key)
+            if cached and cached[0] > time.monotonic():
+                if cached[2]:
+                    raise AccessError(cached[2])
+                parser = cached[1]
             else:
-                parser = RobotFileParser()
-                parser.parse(response.text.splitlines())
-            self.robots[key] = (time.monotonic() + 3600, parser)
-        else:
-            parser = cached[1]
+                try:
+                    response = await self.fetch_robots(origin + "/robots.txt", key[1])
+                    if response.status_code in {404, 410}:
+                        parser = None
+                    elif response.status_code != 200:
+                        raise AccessError(f"robots_unavailable_http_{response.status_code}")
+                    elif re.search(r"<\s*(?:!doctype\s+html|html|form)\b", response.text, re.I):
+                        raise AccessError("robots_access_challenge")
+                    else:
+                        parser = Protego.parse(response.text)
+                except (AccessError, TimeoutError) as error:
+                    reason = str(error) if isinstance(error, AccessError) else "robots_timeout"
+                    self.robots[key] = (time.monotonic() + self.settings.error_ttl, None, reason)
+                    raise AccessError(reason) from None
+                self.robots[key] = (time.monotonic() + 3600, parser, None)
         if parser is not None:
-            if not parser.can_fetch(self.settings.user_agent, url):
+            if not parser.can_fetch(url, self.settings.user_agent):
                 raise AccessError("robots_denied")
-            crawl_delay = parser.crawl_delay(self.settings.user_agent) or parser.crawl_delay("*")
+            crawl_delay = parser.crawl_delay(self.settings.user_agent)
             if crawl_delay:
                 # A separate per-host cooldown preserves a source's requested crawl delay.
                 self.http.host_intervals[urlsplit(url).hostname] = max(
                     self.settings.per_host_interval, crawl_delay
                 )
+
+    async def fetch_robots(self, url, region):
+        # RFC 9309 permits redirects for robots. Every hop retains DNS/SSRF checks.
+        for redirect in range(6):
+            validate_url(url)
+            response = await self.http.get(url, region)
+            if response.status_code not in {301, 302, 303, 307, 308}:
+                return response
+            if redirect == 5:
+                raise AccessError("robots_redirect_limit")
+            target = response.headers.get("location")
+            if not target:
+                raise AccessError("robots_invalid_redirect")
+            url = urljoin(url, target)
+        raise AccessError("robots_redirect_limit")
 
     async def raw(self, url, region=None, *, robots=True):
         current = url
@@ -127,7 +156,7 @@ class Fetcher:
             title, text, _ = extract(response.text)
             error = blocked_reason(response.status_code, title, text)
             if error:
-                if response.status_code in {403, 429} or "challenge" in error:
+                if response.status_code in {403, 429, 439} or "challenge" in error:
                     wait = 300
                     retry = response.headers.get("retry-after", "")
                     if retry.isdigit():
@@ -147,11 +176,35 @@ class Fetcher:
             page = Page(url=url, source="public_page", status="unavailable", region=selected)
             try:
                 # Includes robots, redirects and DNS in the total wall-clock budget.
-                async with asyncio.timeout(self.settings.timeout * 3):
-                    response, final_url = await self.raw(url, region)
+                from .browser_capture import challenge_policy
+
+                budget = self.settings.timeout * 3
+                if challenge_policy(self.settings, url):
+                    budget += self.settings.browser_timeout
+                async with asyncio.timeout(budget):
+                    try:
+                        response, final_url = await self.raw(url, region)
+                    except AccessError as initial_error:
+                        retryable = str(initial_error) in {
+                            "captcha_or_access_challenge",
+                            "http_403",
+                            "http_439",
+                        }
+                        if not (
+                            retryable and self.settings.browser_url and challenge_policy(self.settings, url)
+                        ):
+                            raise
+                        payload = await self.worker(
+                            "/capture", {"url": url, "region": selected}, self.settings.browser_url
+                        )
+                        final_url = payload["final_url"]
+                        validate_url(final_url)
+                        response = httpx.Response(payload["http_status"], text=payload["html"])
+                        page.extractor = payload["extractor"]
+                        self.cooldowns.pop(urlsplit(url).hostname, None)
                     page.http_status = response.status_code
                     page.final_url = final_url
-                    page.title, page.text, page.structured_data = extract(response.text)
+                    page.title, page.text, page.structured_data = extract(response.text, final_url)
                     page.html = response.text
                     soup = BeautifulSoup(page.html, "html.parser")
                     page.variant_labels = {
@@ -163,7 +216,7 @@ class Fetcher:
                     ][:100]
                     if not page.text.strip():
                         raise AccessError("empty_page")
-                    # Never launch Chromium after denial/challenge. Only opt-in thin JS shells.
+                    # Ordinary dynamic rendering remains limited to opt-in thin JS shells.
                     if dynamic and len(page.text) < 250 and not page.structured_data:
                         if not self.settings.browser_url:
                             raise AccessError("dynamic_page_browser_not_configured")
@@ -172,10 +225,20 @@ class Fetcher:
                         )
                         page.html = payload["html"]
                         validate_url(payload.get("final_url", final_url))
-                        page.title, page.text, page.structured_data = extract(page.html)
+                        page.title, page.text, page.structured_data = extract(
+                            page.html, payload.get("final_url", final_url)
+                        )
                         page.final_url = payload.get("final_url", final_url)
                         page.extractor = "playwright+safehttp"
-                    if self.settings.extraction_url and page.html:
+                    error = blocked_reason(page.http_status or 200, page.title, page.text)
+                    if error:
+                        raise AccessError(error)
+                    page.status = "verified"
+                    has_offers = any(
+                        has_type(node, "Product") and node.get("offers")
+                        for node in objects(page.structured_data)
+                    )
+                    if self.settings.extraction_url and page.html and not has_offers:
                         try:
                             payload = await self.worker(
                                 "/extract", {"html": page.html}, self.settings.extraction_url
@@ -187,17 +250,22 @@ class Fetcher:
                     error = blocked_reason(page.http_status or 200, page.title, page.text)
                     if error:
                         raise AccessError(error)
-                    page.status = "verified"
-                    page.text = page.text[:30000]
-                    page.excerpts = [
-                        p[:600] for p in re.split(r"\n\s*\n|\n", page.text) if len(p.strip()) > 30
-                    ][:8]
             except (AccessError, TimeoutError) as error:
-                page.error = str(error) if isinstance(error, AccessError) else "timeout"
-                match = re.search(r"http_(\d{3})", page.error)
-                if match:
-                    page.http_status = int(match[1])
-                page.html, page.text, page.structured_data = "", "", []
+                if isinstance(error, TimeoutError) and page.status == "verified":
+                    page.extractor += "+extraction_timeout_fallback"
+                else:
+                    page.status = "unavailable"
+                    page.error = str(error) if isinstance(error, AccessError) else "timeout"
+                    match = re.search(r"http_(\d{3})", page.error)
+                    if match:
+                        page.http_status = int(match[1])
+                    page.html, page.text, page.structured_data = "", "", []
+                    page.paragraphs, page.variant_labels = [], {}
+            if page.status == "verified":
+                page.text = page.text[:30000]
+                page.excerpts = [p[:600] for p in re.split(r"\n\s*\n|\n", page.text) if len(p.strip()) > 30][
+                    :8
+                ]
             self.store.put(
                 key,
                 page.model_dump(mode="json"),
@@ -210,21 +278,27 @@ class Fetcher:
         if not self.settings.worker_token:
             raise AccessError("worker_auth_not_configured")
         try:
-            async with httpx.AsyncClient(timeout=self.settings.timeout * 2, trust_env=False) as client:
+            timeout = self.settings.browser_timeout + 3 if path == "/capture" else self.settings.timeout * 2
+            async with httpx.AsyncClient(timeout=timeout, trust_env=False) as client:
                 async with client.stream(
                     "POST",
                     base + path,
                     json=payload,
                     headers={"Authorization": "Bearer " + self.settings.worker_token},
                 ) as response:
-                    response.raise_for_status()
                     chunks, size = [], 0
                     async for chunk in response.aiter_bytes():
                         size += len(chunk)
                         if size > self.settings.max_bytes * 2:
                             raise AccessError("worker_response_too_large")
                         chunks.append(chunk)
-                    return json.loads(b"".join(chunks))
+                    data = json.loads(b"".join(chunks))
+                    if isinstance(data, dict) and re.fullmatch(
+                        r"[a-z0-9_]{1,80}", str(data.get("error", ""))
+                    ):
+                        raise AccessError(data["error"])
+                    response.raise_for_status()
+                    return data
         except (httpx.HTTPError, ValueError):
             raise AccessError("worker_unavailable") from None
 

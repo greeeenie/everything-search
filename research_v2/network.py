@@ -91,6 +91,7 @@ class SafeHTTP:
         self.host_intervals = {}
         self.health = {}
         self.health_lock = asyncio.Lock()
+        self.cookies = {}
 
     async def diagnose(self, region):
         try:
@@ -149,6 +150,12 @@ class SafeHTTP:
             if delay > 0:
                 await asyncio.sleep(delay)
             self.last_request[host] = loop.time()
+            cookie_jar = self.cookies.setdefault((selected, host), httpx.Cookies())
+            cookie_request = httpx.Request("GET", url)
+            cookie_jar.set_cookie_header(cookie_request)
+            request_headers = {"Host": u.netloc}
+            if "cookie" in cookie_request.headers:
+                request_headers["Cookie"] = cookie_request.headers["cookie"]
             try:
                 async with httpx.AsyncClient(
                     proxy=self.router.proxy(selected) if self.transport is None else None,
@@ -159,7 +166,7 @@ class SafeHTTP:
                     headers={"User-Agent": self.settings.user_agent},
                 ) as client:
                     async with client.stream(
-                        "GET", pinned_url, headers={"Host": u.netloc}, extensions={"sni_hostname": host}
+                        "GET", pinned_url, headers=request_headers, extensions={"sni_hostname": host}
                     ) as response:
                         chunks, size = [], 0
                         async for chunk in response.aiter_bytes():
@@ -167,17 +174,19 @@ class SafeHTTP:
                             if size > self.settings.max_bytes:
                                 raise AccessError("response_too_large")
                             chunks.append(chunk)
-                        headers = {
-                            key: value
-                            for key, value in response.headers.items()
+                        headers = [
+                            (key, value)
+                            for key, value in response.headers.multi_items()
                             if key.lower() not in {"content-encoding", "content-length", "transfer-encoding"}
-                        }
-                        return httpx.Response(
+                        ]
+                        result = httpx.Response(
                             response.status_code,
                             headers=headers,
                             content=b"".join(chunks),
                             request=httpx.Request("GET", url),
                         )
+                        cookie_jar.extract_cookies(result)
+                        return result
             except httpx.TimeoutException:
                 raise AccessError("timeout") from None
             except httpx.RequestError:

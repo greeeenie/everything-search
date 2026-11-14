@@ -1,0 +1,267 @@
+{
+  "query": "Wanbo Cube 2 Pro",
+  "model": "Wanbo Cube 2 Pro",
+  "city": "Омск",
+  "checked_at": "2026-11-14T13:36:28.567908+00:00",
+  "products": [
+    {
+      "id": "fe465f7a24a99c95c7cd",
+      "name": "Wanbo Cube 2 Pro",
+      "brand": null,
+      "model": "Wanbo Cube 2 Pro",
+      "identity_basis": "exact query in structured Product.name",
+      "specifications": {},
+      "specification_conflicts": {},
+      "variants": [],
+      "sources": [
+        {
+          "url": "https://www.avito.ru/all?q=Wanbo+Cube+2+Pro",
+          "source": "public_page",
+          "checked_at": "2026-11-14T13:35:27.546799+00:00",
+          "status": "verified",
+          "region": "RU",
+          "error": null,
+          "http_status": 200,
+          "excerpts": [
+            "Product.name=Проектор Wanbo Cube 2 Pro; model=not supplied",
+            "Extraction=avito_public_microdata"
+          ]
+        },
+        {
+          "url": "https://www.avito.ru/all?q=Wanbo+Cube+2+Pro",
+          "source": "public_page",
+          "checked_at": "2026-11-14T13:35:27.546799+00:00",
+          "status": "verified",
+          "region": "RU",
+          "error": null,
+          "http_status": 200,
+          "excerpts": [
+            "Product.name=Full HD проектор Wanbo Cube 2 Pro; model=not supplied",
+            "Extraction=avito_public_microdata"
+          ]
+        }
+      ]
+    }
+  ],
+  "offers": [
+    {
+      "url": "https://www.avito.ru/moskva/audio_i_video/proektor_wanbo_cube_2_pro_8148593940",
+      "product_id": "fe465f7a24a99c95c7cd",
+      "title": "Проектор Wanbo Cube 2 Pro",
+      "marketplace": "avito",
+      "seller": "ТехноМаркет",
+      "price": "15082",
+      "currency": "RUB",
+      "price_conditions": [],
+      "price_scope": "public",
+      "condition": "unknown",
+      "availability": "in_stock",
+      "delivery": {},
+      "delivery_city": "Омск",
+      "delivery_status": "unconfirmed",
+      "shipping_cost": null,
+      "total_price": null,
+      "variants": {},
+      "evidence": {
+        "url": "https://www.avito.ru/all?q=Wanbo+Cube+2+Pro",
+        "source": "public_page",
+        "checked_at": "2026-11-14T13:35:27.546799+00:00",
+        "status": "verified",
+        "region": "RU",
+        "error": null,
+        "http_status": 200,
+        "excerpts": [
+          "Product.name=Проектор Wanbo Cube 2 Pro; model=not supplied",
+          "Extraction=avito_public_microdata",
+          "Offer.url=https://www.avito.ru/moskva/audio_i_video/proektor_wanbo_cube_2_pro_8148593940; seller=ТехноМаркет; price=15082; currency=RUB; availability=LimitedAvailability; condition="
+        ]
+      }
+    },
+    {
+      "url": "https://www.avito.ru/nizhniy_novgorod/audio_i_video/full_hd_proektor_wanbo_cube_2_pro_8182931329",
+      "product_id": "fe465f7a24a99c95c7cd",
+      "title": "Full HD проектор Wanbo Cube 2 Pro",
+      "marketplace": "avito",
+      "seller": null,
+      "price": "12500",
+      "currency": "RUB",
+      "price_conditions": [],
+      "price_scope": "public",
+      "condition": "unknown",
+      "availability": "in_stock",
+      "delivery": {},
+      "delivery_city": "Омск",
+      "delivery_status": "unconfirmed",
+      "shipping_cost": null,
+      "total_price": null,
+      "variants": {},
+      "evidence": {
+        "url": "https://www.avito.ru/all?q=Wanbo+Cube+2+Pro",
+        "source": "public_page",
+        "checked_at": "2026-11-14T13:35:27.546799+00:00",
+        "status": "verified",
+        "region": "RU",
+        "error": null,
+        "http_status": 200,
+        "excerpts": [
+          "Product.name=Full HD проектор Wanbo Cube 2 Pro; model=not supplied",
+          "Extraction=avito_public_microdata",
+          "Offer.url=https://www.avito.ru/nizhniy_novgorod/audio_i_video/full_hd_proektor_wanbo_cube_2_pro_8182931329; seller=None; price=12500; currency=RUB; availability=LimitedAvailability; condition="
+        ]
+      }
+    },
+    {
+      "url": "https://market.yandex.ru/card/proyektor-wanbo-cube-2-pro-temno-siniy/5564951852?do-waremd5=oKvCxpejloKMJMTQJzln2w&cc=CiA1MDRjYjQ5NGQ2YWFmZWE5NmY3MmJjOTA5NmMyNzBkMBDnAYB95u0G&resale_goods=resale_new&hid=191219&nid=26960370&show-uid=17946631975397946807906001&showUid=17946631975397946807906001&from-show-uid=17946631975397946807906001&cpa=1",
+      "product_id": "fe465f7a24a99c95c7cd",
+      "title": "Проектор Wanbo Cube 2 Pro темно-синий",
+      "marketplace": "yandex_market",
+      "seller": "OnlyBT",
+      "price": "33691",
+      "currency": "RUB",
+      "price_conditions": [
+        "bank_card"
+      ],
+      "price_scope": "conditional",
+      "condition": "unknown",
+      "availability": "in_stock",
+      "delivery": {},
+      "delivery_city": "Омск",
+      "delivery_status": "unconfirmed",
+      "shipping_cost": null,
+      "total_price": null,
+      "variants": {
+        "color": "темно-синий"
+      },
+      "evidence": {
+        "url": "https://market.yandex.ru/search?text=Wanbo+Cube+2+Pro",
+        "source": "public_page",
+        "checked_at": "2026-11-14T13:33:16.975432+00:00",
+        "status": "verified",
+        "region": "RU",
+        "error": null,
+        "http_status": 200,
+        "excerpts": [
+          "Product.name=Проектор Wanbo Cube 2 Pro темно-синий; model=not supplied",
+          "Extraction=yandex_public_search_dom",
+          "Offer.url=https://market.yandex.ru/card/proyektor-wanbo-cube-2-pro-temno-siniy/5564951852?do-waremd5=oKvCxpejloKMJMTQJzln2w&cc=CiA1MDRjYjQ5NGQ2YWFmZWE5NmY3MmJjOTA5NmMyNzBkMBDnAYB95u0G&resale_goods=resale_new&hid=191219&nid=26960370&show-uid=17946631975397946807906001&showUid=17946631975397946807906001&from-show-uid=17946631975397946807906001&cpa=1; seller=OnlyBT; price=33691; currency=RUB; availability=InStock; condition="
+        ]
+      }
+    }
+  ],
+  "candidates": [
+    {
+      "url": "https://www.avito.ru/all?q=Wanbo+Cube+2+Pro",
+      "source": "marketplace_search",
+      "checked_at": "2026-11-14T13:36:28.567338+00:00",
+      "status": "verified",
+      "region": "RU",
+      "error": null,
+      "http_status": null,
+      "excerpts": [],
+      "title": "Wanbo Cube 2 Pro",
+      "search_excerpt": "",
+      "fetch_status": "verified",
+      "fetch_error": null,
+      "fetch_checked_at": "2026-11-14T13:35:27.546799+00:00"
+    },
+    {
+      "url": "https://market.yandex.ru/search?text=Wanbo+Cube+2+Pro",
+      "source": "marketplace_search",
+      "checked_at": "2026-11-14T13:36:28.567800+00:00",
+      "status": "verified",
+      "region": "RU",
+      "error": null,
+      "http_status": null,
+      "excerpts": [],
+      "title": "Wanbo Cube 2 Pro",
+      "search_excerpt": "",
+      "fetch_status": "verified",
+      "fetch_error": null,
+      "fetch_checked_at": "2026-11-14T13:33:16.975432+00:00"
+    },
+    {
+      "url": "https://www.ozon.ru/product/portativnyy-proektor-wanbo-projector-cube-2-pro-android-11-1080p-podderzhka-4k-yarkost-500-2835015048/",
+      "source": "searxng",
+      "checked_at": "2026-11-14T13:36:28.499839+00:00",
+      "status": "indexed_only",
+      "region": "RU",
+      "error": null,
+      "http_status": null,
+      "excerpts": [],
+      "title": "Портативный проектор Wanbo Projector Cube 2 Pro (Android 11 ...",
+      "search_excerpt": "Домашний проектор Wanbo Cube 2 Pro работает на Android TV 11 и поддерживает установку более 7000 приложений из Google Play, включая Netflix, Prime Video и другие сервисы.",
+      "fetch_status": "unavailable",
+      "fetch_error": "source_cooldown",
+      "fetch_checked_at": "2026-11-14T13:36:28.652049+00:00",
+      "extraction_error": "source_cooldown"
+    },
+    {
+      "url": "https://market.yandex.ru/card/proyektor-wanbo-cube-2-pro-belyy/4756644609",
+      "source": "searxng",
+      "checked_at": "2026-11-14T13:36:28.303429+00:00",
+      "status": "indexed_only",
+      "region": "RU",
+      "error": null,
+      "http_status": null,
+      "excerpts": [],
+      "title": "Проектор Wanbo Cube 2 Pro, белый — купить в интернет-магазине ...",
+      "search_excerpt": "Проектор Wanbo Cube 2 Pro, белый — купить в интернет-магазине ТЕХНОПАРК на Яндекс Маркете.🚚 Доставка на дом или в ближайший пункт выдачи.⭐️ Отзывы реальных покупателей о продавце и товаре.💰 ...",
+      "fetch_status": "verified",
+      "fetch_error": null,
+      "fetch_checked_at": "2026-11-14T13:33:16.976380+00:00"
+    },
+    {
+      "url": "https://www.ozon.ru/product/proektor-dlya-filmov-portativnyy-wanbo-cube-2-pro-s-golosovym-upravleniem-android-11-yarkostyu-500-3070977459/",
+      "source": "searxng",
+      "checked_at": "2026-11-14T13:36:28.511489+00:00",
+      "status": "indexed_only",
+      "region": "RU",
+      "error": null,
+      "http_status": null,
+      "excerpts": [],
+      "title": "Проектор для фильмов портативный Wanbo Cube 2 Pro с голосовым ...",
+      "search_excerpt": "Новика 2025 года от компании Wanbo - компактный проектор Wanbo Cube 2 Pro в минималистичном и продуманном дизайне на регулируемом кронштейне с углом поворота до 230 градусов.",
+      "fetch_status": "unavailable",
+      "fetch_error": "source_cooldown",
+      "fetch_checked_at": "2026-11-14T13:36:28.661536+00:00",
+      "extraction_error": "source_cooldown"
+    },
+    {
+      "url": "https://www.ozon.ru/product/proektor-dlya-filmov-portativnyy-wanbo-cube-2-pro-android-11-golosovoy-pomoshchnik-1gb-8gb-500-ansi-3071004273/",
+      "source": "searxng",
+      "checked_at": "2026-11-14T13:36:28.517397+00:00",
+      "status": "indexed_only",
+      "region": "RU",
+      "error": null,
+      "http_status": null,
+      "excerpts": [],
+      "title": "Проектор для фильмов портативный Wanbo Cube 2 Pro, Android 11 ...",
+      "search_excerpt": "Проектор для фильмов портативный Wanbo Cube 2 Pro, Android 11, голосовой помощник, 1Гб+8Гб, 500 ANSI люмен (WPC024) – покупайте на OZON по выгодным ценам!",
+      "fetch_status": "unavailable",
+      "fetch_error": "source_cooldown",
+      "fetch_checked_at": "2026-11-14T13:36:28.666599+00:00",
+      "extraction_error": "source_cooldown"
+    },
+    {
+      "url": "https://market.yandex.ru/card/proyektor-wanbo-cube-2-pro-belyy/4756625286",
+      "source": "searxng",
+      "checked_at": "2026-11-14T13:36:28.318650+00:00",
+      "status": "indexed_only",
+      "region": "RU",
+      "error": null,
+      "http_status": null,
+      "excerpts": [],
+      "title": "Проектор Wanbo Cube 2 Pro, белый — купить в интернет-магазине ...",
+      "search_excerpt": "Проектор Wanbo Cube 2 Pro, белый — купить в интернет-магазине на Яндекс Маркете.🚚 Доставка на дом или в ближайший пункт выдачи.⭐️ Отзывы реальных покупателей о продавце и товаре.💰Проектор Wanbo ...",
+      "fetch_status": "verified",
+      "fetch_error": null,
+      "fetch_checked_at": "2026-11-14T13:33:16.977019+00:00"
+    }
+  ],
+  "errors": [],
+  "limitations": [
+    "Prices and stock describe retrieved public pages at checked_at.",
+    "Delivery to the requested city must be stated by the source to be confirmed.",
+    "Missing structured product/offer data is reported, never filled from index prices."
+  ]
+}

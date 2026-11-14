@@ -2,6 +2,7 @@
 
 import os
 
+import httpx
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 import pytest
@@ -33,15 +34,41 @@ async def test_live_distinct_regional_routes():
     assert all(x["status"] == "verified" for x in result["egress"])
 
 
-async def test_live_public_product_has_evidenced_price():
+async def test_live_browser_guard_uses_both_exits():
+    from research_v2.browser_network import BrowserNetwork
+    from research_v2.config import Settings
+
+    settings = Settings.load()
+    exits = {}
+    for region, country in settings.expected_countries.items():
+        async with BrowserNetwork(settings, region, ["www.cloudflare.com"]) as network:
+            async with httpx.AsyncClient(proxy=network.url, timeout=15, trust_env=False) as client:
+                response = await client.get("https://www.cloudflare.com/cdn-cgi/trace")
+        assert response.status_code == 200
+        values = dict(line.split("=", 1) for line in response.text.splitlines() if "=" in line)
+        assert values.get("loc") == country
+        exits[region] = values["ip"]
+    assert exits["RU"] != exits["EU"]
+
+
+@pytest.mark.parametrize("marketplace", ["yandex_market", "avito"])
+async def test_live_public_product_has_evidenced_price(marketplace):
     result = await call(
-        "get_product_details", {"url": "https://www.adafruit.com/product/5813", "model": "Raspberry Pi 5"}
+        "search_products",
+        {
+            "query": "Wanbo Cube 2 Pro",
+            "model": "Wanbo Cube 2 Pro",
+            "marketplaces": [marketplace],
+            "max_results": 4,
+        },
     )
-    assert result["page"]["status"] == "verified", result["page"].get("error")
-    assert result["products"] and result["offers"]
+    assert result["products"] and result["offers"], result["candidates"]
     assert any(offer["price"] is not None and offer["currency"] for offer in result["offers"])
     assert all(
-        offer["evidence"]["checked_at"] and offer["evidence"]["status"] == "verified"
+        offer["evidence"]["checked_at"]
+        and offer["evidence"]["status"] == "verified"
+        and offer["evidence"]["region"] == "RU"
+        and offer["marketplace"] == marketplace
         for offer in result["offers"]
     )
 

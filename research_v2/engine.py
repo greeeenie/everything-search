@@ -6,7 +6,8 @@ import json
 from .config import Settings
 from .discovery import Discovery, canonical_url
 from .fetching import Fetcher
-from .models import now
+from .models import SearchHit, now
+from .network import EgressRouter
 from .shopping import adapter_for, model_matches, product_matches, review_excerpts
 from .store import Store
 
@@ -113,6 +114,22 @@ class Engine:
                 if product_matches(model, hit.title)
                 or product_matches(model, unquote(urlsplit(hit.url).path).replace("-", " ").replace("_", " "))
             ]
+        native_hits = []
+        for domain in self.shop_domains(marketplaces):
+            adapter = adapter_for("https://" + domain)
+            native_url = adapter.search_url(search_query)
+            if adapter.name in self.settings.native_search_marketplaces and native_url:
+                native_hits.append(
+                    SearchHit(
+                        url=native_url,
+                        title=search_query,
+                        source="marketplace_search",
+                        status="unavailable",
+                        error="not_fetched",
+                        region=EgressRouter(self.settings).choose(native_url, region),
+                    )
+                )
+        hits = native_hits + hits
         output = {
             "query": query,
             "model": model,
@@ -129,6 +146,7 @@ class Engine:
             ],
         }
         products, offers = {}, {}
+        condition_details_checked = 0
         filter_currency = (
             currency.upper()
             if currency
@@ -149,6 +167,8 @@ class Engine:
             candidate.update(
                 fetch_status=page.status, fetch_error=page.error, fetch_checked_at=page.checked_at
             )
+            if hit.source == "marketplace_search":
+                candidate.update(status=page.status, error=page.error)
             if not parsed_products:
                 candidate["extraction_error"] = (
                     "model_mismatch_or_no_product_data" if page.status == "verified" else page.error
@@ -170,6 +190,33 @@ class Engine:
                 else:
                     products[product.id] = product
             for offer in parsed_offers:
+                if (
+                    condition
+                    and offer.condition == "unknown"
+                    and offer.marketplace == "avito"
+                    and condition_details_checked < self.settings.condition_detail_limit
+                ):
+                    condition_details_checked += 1
+                    detail = await self.fetcher.read(offer.url, region, dynamic=True)
+                    _, detail_offers = adapter_for(detail.final_url or offer.url).parse(
+                        detail, model or offer.title
+                    )
+                    # An Avito ad's canonical path identifies the individual offer.
+                    matching = next(
+                        (
+                            item
+                            for item in detail_offers
+                            if canonical_url(item.url) == canonical_url(offer.url)
+                        ),
+                        None,
+                    )
+                    if matching:
+                        matching.product_id = offer.product_id
+                        matching.seller = matching.seller or offer.seller
+                        matching.variants = {**offer.variants, **matching.variants}
+                        offer = matching
+                    elif detail.status != "verified":
+                        output["errors"].append({"url": offer.url, "error": detail.error})
                 offer.delivery_city = city
                 self.delivery_for_city(offer, city)
                 if condition and offer.condition != condition:
@@ -199,6 +246,13 @@ class Engine:
                 self.store.record(evidence)
         output["products"] = [x.model_dump(mode="json") for x in products.values()]
         output["offers"] = [x.model_dump(mode="json") for x in offers.values()]
+        if condition:
+            output["condition_details_checked"] = condition_details_checked
+            output["condition_detail_limit"] = self.settings.condition_detail_limit
+            output["limitations"].append(
+                "Unknown Avito condition is checked on a bounded number of individual ads. "
+                "Unconfirmed condition is excluded from condition-filtered results."
+            )
         for product in output["products"]:
             if product["sources"]:
                 self.store.record({**product["sources"][0], "normalized_product": product})

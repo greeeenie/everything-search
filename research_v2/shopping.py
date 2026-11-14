@@ -4,7 +4,7 @@ import hashlib
 import re
 import unicodedata
 from decimal import Decimal, InvalidOperation
-from urllib.parse import parse_qs, urljoin, urlsplit
+from urllib.parse import parse_qs, parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
 
 from bs4 import BeautifulSoup
 
@@ -16,7 +16,8 @@ def normalize(value):
     value = unicodedata.normalize("NFKC", value).casefold()
     value = re.sub(r"(?<=[^\W\d_])(?=\d)|(?<=\d)(?=[^\W\d_])", " ", value)
     value = re.sub(r"(?<=\d),(?=\d)", ".", value)
-    return " ".join(re.findall(r"[\w]+(?:\.[\d]+)?", value))
+    words = re.findall(r"[\w]+(?:\.[\d]+)?", value)
+    return " ".join(word for word in words if word not in {"projector", "проектор"})
 
 
 def identity(name, brand=None, model=None, sku=None):
@@ -89,15 +90,30 @@ def money(value):
         return None
 
 
+def title_color(title):
+    text = title.casefold().replace("ё", "е")
+    match = re.search(r"(?<!\w)(?:бежево[-\s]зеленый|темно[-\s]синий|белый|черный|синий|зеленый)(?!\w)", text)
+    return match[0].replace(" ", "-") if match else None
+
+
 class MarketplaceAdapter:
     name = "public_web"
     domain = ""
 
+    def search_url(self, query):
+        return None
+
+    def public_products(self, soup, url):
+        return []
+
     def is_offer_url(self, url):
         return True
 
+    def is_product_page(self, url):
+        return self.is_offer_url(url)
+
     def parse(self, page, requested_model=None):
-        if page.status != "verified" or not self.is_offer_url(page.final_url or page.url):
+        if page.status != "verified" or not self.is_product_page(page.final_url or page.url):
             return [], []
         products, offers = [], []
         for node in objects(page.structured_data):
@@ -124,6 +140,8 @@ class MarketplaceAdapter:
             pid = identity(requested_model or name) if requested_model else identity(name, brand, model)
             evidence = Evidence(**{k: getattr(page, k) for k in Evidence.model_fields})
             evidence.excerpts = [f"Product.name={name}; model={model or 'not supplied'}"]
+            if node.get("_extraction"):
+                evidence.excerpts.append("Extraction=" + str(node["_extraction"]))
             product = Product(
                 id=pid,
                 name=requested_model or name,
@@ -184,6 +202,7 @@ class MarketplaceAdapter:
                 # If the page advertises card/subscription/coupon pricing, conservatively
                 # mark all unlabeled structured prices conditional rather than assume public.
                 conditions = []
+                price_context = str(raw.get("_price_context", page.text)).casefold()
                 for pattern, label in (
                     (
                         r"(?:по|с|оплат\w*)\s+(?:банковск\w*\s+)?карт\w*|ozon\s*карт|карт\w*\s*(?:ozon|озон)|с\s+ozon",
@@ -192,7 +211,7 @@ class MarketplaceAdapter:
                     (r"(?:с\s+подписк|для\s+подписчик|яндекс\s*плюс|yandex\s*plus)", "subscription"),
                     (r"промокод|купон|cashback|кэшбэк", "coupon_or_cashback"),
                 ):
-                    if re.search(pattern, page.text.casefold()):
+                    if re.search(pattern, price_context):
                         conditions.append(label)
                 price_spec = raw.get("priceSpecification", {})
                 if isinstance(price_spec, dict) and any(
@@ -231,6 +250,7 @@ class MarketplaceAdapter:
                         }.get(condition, "unknown"),
                         availability={
                             "InStock": "in_stock",
+                            "LimitedAvailability": "in_stock",
                             "OutOfStock": "out_of_stock",
                             "SoldOut": "out_of_stock",
                             "PreOrder": "preorder",
@@ -246,7 +266,8 @@ class MarketplaceAdapter:
                         },
                     )
                 )
-                variant_id = parse_qs(urlsplit(source_url).query).get("variant", [None])[0]
+                parameters = parse_qs(urlsplit(source_url).query)
+                variant_id = parameters.get("variant", [None])[0]
                 variant_label = page.variant_labels.get(variant_id, "") if variant_id else ""
                 capacity_text = (
                     name
@@ -280,12 +301,150 @@ class OzonAdapter(MarketplaceAdapter):
 class AvitoAdapter(MarketplaceAdapter):
     name, domain = "avito", "avito.ru"
 
+    def search_url(self, query):
+        return "https://www.avito.ru/all?" + urlencode({"q": query})
+
+    def is_product_page(self, url):
+        return urlsplit(url).path.startswith("/all") or self.is_offer_url(url)
+
+    def public_products(self, soup, url):
+        products = []
+        for card in soup.select('[itemscope][itemtype$="/Product"]')[:80]:
+            title = card.select_one('[itemprop="name"]')
+            anchor = card.select_one('a[data-marker="item-title"], a[itemprop="url"]')
+            price = card.select_one('meta[itemprop="price"]')
+            currency = card.select_one('meta[itemprop="priceCurrency"]')
+            availability = card.select_one('meta[itemprop="availability"]')
+            condition = card.select_one('meta[itemprop="itemCondition"]')
+            if not title or not anchor or not price or not currency:
+                continue
+            target = urlsplit(urljoin(url, anchor.get("href", "")))
+            offer_url = urlunsplit((target.scheme, target.netloc, target.path, "", ""))
+            if not host_matches(target.hostname or "", self.domain) or not self.is_offer_url(offer_url):
+                continue
+            # Price and state come from this item's public microdata, never its neighbours.
+            offer = {
+                "@type": "Offer",
+                "url": offer_url,
+                "price": price.get("content"),
+                "priceCurrency": currency.get("content"),
+                "_price_context": card.get_text(" ", strip=True),
+            }
+            if availability:
+                offer["availability"] = availability.get("content")
+            if condition:
+                offer["itemCondition"] = condition.get("content")
+            shop = card.select_one('a[href^="/brands/"]')
+            if shop:
+                # Seller review counters belong to the seller, never the product.
+                shop_copy = BeautifulSoup(str(shop), "html.parser")
+                for rating in shop_copy.select(
+                    '[data-marker*="rating"], [data-marker*="score"], [data-marker*="summary"]'
+                ):
+                    rating.decompose()
+                label = shop_copy.get_text(" ", strip=True).strip(" ·")
+                if label:
+                    offer["seller"] = {"name": label[:200]}
+            products.append(
+                {
+                    "@type": "Product",
+                    "name": title.get_text(" ", strip=True),
+                    "offers": offer,
+                    "_extraction": "avito_public_microdata",
+                }
+            )
+            color = title_color(title.get_text(" ", strip=True))
+            if color:
+                products[-1]["color"] = color
+        return products
+
     def is_offer_url(self, url):
         return bool(re.search(r"/[^/?]+_\d{5,}/?(?:\?|$)", url))
 
 
 class YandexMarketAdapter(MarketplaceAdapter):
     name, domain = "yandex_market", "market.yandex.ru"
+
+    def search_url(self, query):
+        return "https://market.yandex.ru/search?" + urlencode({"text": query})
+
+    def is_product_page(self, url):
+        return urlsplit(url).path == "/search" or self.is_offer_url(url)
+
+    def public_products(self, soup, url):
+        if urlsplit(url).path != "/search":
+            heading = soup.find("h1")
+            if heading and self.is_offer_url(url):
+                return [
+                    {
+                        "@type": "Product",
+                        "name": heading.get_text(" ", strip=True),
+                        "_extraction": "yandex_public_heading",
+                    }
+                ]
+            return []
+        products = []
+        for card in soup.select('[data-auto="searchOrganic"]')[:60]:
+            title = card.select_one('[data-auto="snippet-title"]')
+            price = card.select_one('[data-auto="snippet-price-current"]')
+            anchor = title if title and title.name == "a" else title.find_parent("a") if title else None
+            if not anchor and title:
+                anchor = title.find("a")
+            if not title or not price or not anchor or not anchor.get("href"):
+                continue
+            price_text = price.get_text(" ", strip=True)
+            if "₽" not in price_text:
+                continue
+            match = re.search(r"\d[\d\s]*(?:[.,]\d{1,2})?", price_text)
+            amount = money(re.sub(r"\s+", "", match[0])) if match else None
+            if amount is None:
+                continue
+            target = urlsplit(urljoin(url, anchor["href"]))
+            if target.hostname != self.domain:
+                continue
+            query = [
+                (key, value)
+                for key, value in parse_qsl(target.query)
+                if key not in {"cpc", "sponsored", "ogV"}
+            ]
+            offer_url = urlunsplit((target.scheme, target.netloc, target.path, urlencode(query), ""))
+            if not self.is_offer_url(offer_url):
+                continue
+            shop = card.select_one('[data-zone-name="shopInShop"]')
+            cart = card.select_one('[data-auto="cartButton"]')
+            available = bool(
+                cart
+                and not cart.has_attr("disabled")
+                and cart.get("aria-disabled") != "true"
+                and "в корзину" in normalize(cart.get("aria-label") or cart.get_text(" ", strip=True))
+            )
+            for hidden in card.select("script, style, noframes, template"):
+                hidden.decompose()
+            visible_text = card.get_text(" ", strip=True)
+            offer = {
+                "@type": "Offer",
+                "url": offer_url,
+                "price": str(amount),
+                "priceCurrency": "RUB",
+                "_price_context": visible_text,
+                "_extraction": "yandex_public_search_dom",
+            }
+            if available:
+                offer["availability"] = "https://schema.org/InStock"
+            if shop:
+                offer["seller"] = {"name": shop.get_text(" ", strip=True)[:200]}
+            products.append(
+                {
+                    "@type": "Product",
+                    "name": title.get_text(" ", strip=True),
+                    "offers": offer,
+                    "_extraction": "yandex_public_search_dom",
+                }
+            )
+            color = title_color(title.get_text(" ", strip=True))
+            if color:
+                products[-1]["color"] = color
+        return products
 
     def is_offer_url(self, url):
         return bool(re.search(r"/(?:product--[^/]+/\d+|card/[^/]+/\d+|offer/[^/?]+)", url))

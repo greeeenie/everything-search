@@ -14,6 +14,10 @@ class Settings:
     default_region: str = "EU"
     marketplaces: dict[str, str] = field(default_factory=dict)
     enabled_marketplaces: list[str] = field(default_factory=list)
+    native_search_marketplaces: list[str] = field(default_factory=list)
+    automatic_challenges: dict[str, dict] = field(default_factory=dict)
+    browser_timeout: float = 30
+    condition_detail_limit: int = 4
     review_domains: list[str] = field(default_factory=list)
     ru_proxy: str = ""
     eu_proxy: str = "socks5://127.0.0.1:10808"

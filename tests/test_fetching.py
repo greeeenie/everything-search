@@ -1,4 +1,5 @@
 import httpx
+import asyncio
 
 from conftest import fetcher_for
 
@@ -77,3 +78,49 @@ async def test_response_size_limit(settings, store):
 
     page = await fetcher_for(settings, store, handler).read("https://example.com/page")
     assert page.error == "response_too_large"
+
+
+async def test_optional_extraction_timeout_preserves_verified_html(settings, store, monkeypatch):
+    settings.timeout = 0.03
+    settings.extraction_url = "http://127.0.0.1:8770"
+
+    def handler(request):
+        return (
+            httpx.Response(404)
+            if request.url.path == "/robots.txt"
+            else httpx.Response(200, text="<p>Successfully retrieved public evidence remains available.</p>")
+        )
+
+    async def slow_worker(*args):
+        await asyncio.sleep(1)
+
+    fetcher = fetcher_for(settings, store, handler)
+    monkeypatch.setattr(fetcher, "worker", slow_worker)
+    page = await fetcher.read("https://example.com/page")
+    assert page.status == "verified" and page.error is None
+    assert "public evidence" in page.text and page.excerpts
+    assert "extraction_timeout_fallback" in page.extractor
+
+
+async def test_structured_offers_skip_secondary_text_extraction(settings, store, monkeypatch):
+    settings.extraction_url = "http://127.0.0.1:8770"
+
+    def handler(request):
+        return (
+            httpx.Response(404)
+            if request.url.path == "/robots.txt"
+            else httpx.Response(
+                200,
+                text='<p>Available product evidence</p><script type="application/ld+json">'
+                '{"@type":"Product","name":"Example","offers":{"@type":"Offer","price":"100","priceCurrency":"RUB"}}'
+                "</script>",
+            )
+        )
+
+    async def worker(*args):
+        raise AssertionError("Complete structured offers are already extracted")
+
+    fetcher = fetcher_for(settings, store, handler)
+    monkeypatch.setattr(fetcher, "worker", worker)
+    page = await fetcher.read("https://example.com/product")
+    assert page.status == "verified" and page.structured_data[0]["offers"]["price"] == "100"

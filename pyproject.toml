@@ -8,6 +8,7 @@ dependencies = [
   "httpx[socks]==0.28.1",
   "beautifulsoup4>=4.12,<5",
   "PyYAML>=6,<7",
+  "protego>=0.5,<1",
   "uvicorn>=0.34,<1",
 ]
 
