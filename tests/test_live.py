@@ -69,6 +69,10 @@ async def test_live_public_product_has_evidenced_price(marketplace):
         and offer["evidence"]["status"] == "verified"
         and offer["evidence"]["region"] == "RU"
         and offer["marketplace"] == marketplace
+        and offer["availability"] == "in_stock"
+        and offer["price"] is not None
+        and float(offer["price"]) > 0
+        and offer["currency"]
         for offer in result["offers"]
     )
 
@@ -102,3 +106,19 @@ async def test_live_ozon_card_uses_automatic_browser():
     assert result["page"]["extractor"].startswith("camoufox")
     assert result["offers"] and all(offer["evidence"]["status"] == "verified" for offer in result["offers"])
     assert any(offer["price"] is not None and offer["currency"] == "RUB" for offer in result["offers"])
+
+
+async def test_live_web_product_rows_require_stock_and_price():
+    result = await call("search_web", {"query": '"Wanbo Vali 1 Pro"', "site": "ozon.ru", "max_results": 3})
+    assert isinstance(result["excluded_product_pages"], int)
+    assert result["pages_read"] > 0, result["errors"]
+    for row in result["results"]:
+        assert row["offers"]
+        assert all(
+            offer["evidence"]["status"] == "verified"
+            and offer["availability"] == "in_stock"
+            and offer["price"] is not None
+            and float(offer["price"]) > 0
+            and offer["currency"]
+            for offer in row["offers"]
+        )

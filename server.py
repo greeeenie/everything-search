@@ -42,6 +42,8 @@ mcp = FastMCP(
         " For multi-source research always specify mode=quick or mode=deep. "
         "For shopping use search_products or compare_prices with an exact model and delivery city. "
         "Only fetched page data may establish price or stock. State conditional prices and failed reads."
+        " Present shopping results only from verified in-stock offers with a positive price and currency. "
+        "Keep discovery candidates and excluded pages in diagnostics."
     ),
     host="127.0.0.1",
     port=8765,
@@ -240,7 +242,11 @@ async def search_web(
     max_results: Annotated[int, Field(ge=1, le=5)] = 4,
     region: Literal["EU", "RU"] | None = None,
 ) -> dict[str, Any]:
-    """Search and read public web pages. Use a domain filter for a specific site."""
+    """Search and read public web pages. Use a domain filter for a specific site.
+
+    Product listings require verified in-stock offers with a positive price and currency.
+    Excluded product pages are counted in excluded_product_pages.
+    """
     from research_v2.engine import get_engine
     return await get_engine().search_web(query, site.lower() if site else None, max_results, region)
 

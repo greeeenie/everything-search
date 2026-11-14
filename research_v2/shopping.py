@@ -90,6 +90,17 @@ def money(value):
         return None
 
 
+def available_priced_offer(offer):
+    return (
+        offer.evidence.status == "verified"
+        and offer.availability == "in_stock"
+        and offer.price is not None
+        and offer.price.is_finite()
+        and offer.price > 0
+        and bool(offer.currency)
+    )
+
+
 def title_color(title):
     text = title.casefold().replace("ё", "е")
     match = re.search(r"(?<!\w)(?:бежево[-\s]зеленый|темно[-\s]синий|белый|черный|синий|зеленый)(?!\w)", text)

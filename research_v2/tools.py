@@ -31,7 +31,8 @@ def register_tools(mcp):
         """Find public product offers. Exact model prevents merging adjacent models.
 
         Marketplaces are ozon, avito, yandex_market or explicit shop domains.
-        Only fetched page data can establish price or stock. Pass delivery city.
+        Offers require verified in-stock availability, a positive price and currency.
+        Pass delivery city. Discovery candidates are diagnostic sources.
         """
         return await get_engine().search_products(
             query,
@@ -58,6 +59,7 @@ def register_tools(mcp):
     ) -> dict[str, Any]:
         """Compare exact-model offers by currency, condition and variants.
 
+        Offers require verified in-stock availability, a positive price and currency.
         Best offer requires public price, stock and confirmed city delivery cost.
         """
         return await get_engine().compare_prices(model, marketplaces, city, condition, max_results, region)
@@ -66,7 +68,10 @@ def register_tools(mcp):
     async def get_product_details(
         url: str | None = None, model: Query | None = None, region: Region = None
     ) -> dict[str, Any]:
-        """Read public product specifications, variants, offers and evidence from URL or exact model."""
+        """Read public product specifications, variants and evidence from URL or exact model.
+
+        Offers require verified in-stock availability, a positive price and currency.
+        """
         return await get_engine().get_product_details(url, model, region)
 
     @mcp.tool(annotations=read_only)

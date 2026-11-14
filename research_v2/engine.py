@@ -8,7 +8,7 @@ from .discovery import Discovery, canonical_url
 from .fetching import Fetcher
 from .models import Page, SearchHit, now
 from .network import EgressRouter
-from .shopping import adapter_for, model_matches, product_matches, review_excerpts
+from .shopping import ADAPTERS, adapter_for, available_priced_offer, model_matches, product_matches, review_excerpts
 from .store import Store
 
 
@@ -35,6 +35,7 @@ class Engine:
                 "checked_at": now(),
                 "provider": self.settings.discovery_backend,
                 "pages_read": 0,
+                "excluded_product_pages": 0,
                 "results": [],
                 "errors": [],
                 "scope": "Search excerpts are indexed_only. A verified page confirms retrieval at checked_at.",
@@ -47,6 +48,7 @@ class Engine:
 
         async def read(hit):
             page = await self.fetcher.read(hit.url, region, dynamic=dynamic)
+            adapter = adapter_for(page.final_url or hit.url)
             row = hit.model_dump(mode="json")
             row["fetch_status"] = page.status
             row["checked_at"] = page.checked_at
@@ -61,16 +63,27 @@ class Engine:
                     final_url=page.final_url,
                 )
                 try:
-                    products, offers = adapter_for(page.final_url or hit.url).parse(page)
+                    products, offers = adapter.parse(page)
                     if products:
-                        row["products"] = [product.model_dump(mode="json") for product in products]
+                        offers = [offer for offer in offers if available_priced_offer(offer)]
+                        product_ids = {offer.product_id for offer in offers}
+                        row["products"] = [
+                            product.model_dump(mode="json") for product in products if product.id in product_ids
+                        ]
                         row["offers"] = [offer.model_dump(mode="json") for offer in offers]
                 except (ValueError, TypeError, KeyError):
                     row["product_extraction_error"] = "parsing_error"
             else:
                 row["fetch_error"] = page.error
+            result["pages_read"] += int(page.status == "verified")
+            product_listing = adapter in ADAPTERS and adapter.is_offer_url(hit.url)
+            if (product_listing or "products" in row) and not row.get("offers"):
+                result["excluded_product_pages"] += 1
+                error = row.get("fetch_error") or row.get("product_extraction_error")
+                if error:
+                    result["errors"].append({"url": hit.url, "error": error})
+                return
             result["results"].append(row)
-            result["pages_read"] += int(row["status"] == "verified")
 
         await asyncio.gather(*(read(h) for h in hits))
         return result
@@ -147,6 +160,7 @@ class Engine:
             "candidates": [],
             "errors": errors,
             "limitations": [
+                "Offers require verified in-stock availability, a positive price and currency.",
                 "Prices and stock describe retrieved public pages at checked_at.",
                 "Delivery to the requested city must be stated by the source to be confirmed.",
                 "Missing structured product/offer data is reported, never filled from index prices.",
@@ -234,6 +248,8 @@ class Engine:
                         offer = matching
                     elif detail.status != "verified":
                         output["errors"].append({"url": offer.url, "error": detail.error})
+                if not available_priced_offer(offer):
+                    continue
                 offer.delivery_city = city
                 self.delivery_for_city(offer, city)
                 if condition and offer.condition != condition:
@@ -261,7 +277,10 @@ class Engine:
                 evidence = offer.evidence.model_dump(mode="json")
                 evidence["normalized_offer"] = offer.model_dump(mode="json")
                 self.store.record(evidence)
-        output["products"] = [x.model_dump(mode="json") for x in products.values()]
+        product_ids = {offer.product_id for offer in offers.values()}
+        output["products"] = [
+            product.model_dump(mode="json") for product in products.values() if product.id in product_ids
+        ]
         output["offers"] = [x.model_dump(mode="json") for x in offers.values()]
         if condition:
             output["condition_details_checked"] = condition_details_checked
@@ -354,6 +373,7 @@ class Engine:
         if url:
             page = await self.fetcher.read(url, region, dynamic=True)
             products, offers = adapter_for(page.final_url or url).parse(page, model)
+            offers = [offer for offer in offers if available_priced_offer(offer)]
             for offer in offers:
                 self.store.record(
                     {
