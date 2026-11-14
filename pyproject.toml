@@ -1,0 +1,39 @@
+[project]
+name = "research-v2"
+version = "2.0.0"
+description = "Regional, evidence-backed MCP research with self-hosted discovery"
+requires-python = ">=3.11"
+dependencies = [
+  "mcp==1.30.0",
+  "httpx[socks]==0.28.1",
+  "beautifulsoup4>=4.12,<5",
+  "PyYAML>=6,<7",
+  "uvicorn>=0.34,<1",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8,<10", "pytest-asyncio>=0.25,<2", "ruff>=0.12,<1"]
+extract = ["crawl4ai>=0.7,<0.10"]
+browser = ["playwright>=1.51,<2"]
+
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["server", "community_sources"]
+
+[tool.setuptools.packages.find]
+include = ["research_v2*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+markers = ["integration: opt-in real public network tests"]
+
+[tool.ruff]
+line-length = 110
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]

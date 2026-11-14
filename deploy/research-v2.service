@@ -1,0 +1,26 @@
+[Unit]
+Description=Research v2 MCP on Raspberry Pi
+Requires=research-egress.service
+After=network-online.target research-egress.service xray-multitool.service research-discovery.service
+Wants=network-online.target research-discovery.service research-worker.service
+
+[Service]
+User=research-v2
+Group=research-v2
+WorkingDirectory=/opt/research-v2
+EnvironmentFile=/etc/research-v2/research.env
+ExecStart=/opt/research-v2/.venv/bin/python /opt/research-v2/server.py --http
+Restart=on-failure
+RestartSec=5
+StateDirectory=research-v2
+StateDirectoryMode=0700
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+UMask=0077
+MemoryMax=768M
+TasksMax=96
+
+[Install]
+WantedBy=multi-user.target

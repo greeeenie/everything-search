@@ -1,0 +1,49 @@
+# Linux host networking makes the fixed loopback Xray/SOCKS endpoint available.
+# RESEARCH_UID/GID must match the UID bypass installed on this host.
+services:
+  research:
+    build: {context: ., target: core}
+    user: "${RESEARCH_UID:?Set the research-v2 UID}:${RESEARCH_GID:?Set the research-v2 GID}"
+    network_mode: host
+    env_file: .env
+    environment:
+      RESEARCH_DATABASE: /data/research.sqlite3
+      RESEARCH_CONFIG: /app/config/egress.yaml
+    volumes: ["${RESEARCH_DATA_DIR:-./data}:/data"]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+    mem_limit: 768m
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  searxng:
+    image: ${SEARXNG_IMAGE:-docker.io/searxng/searxng:latest}
+    network_mode: host
+    environment:
+      SEARXNG_BIND_ADDRESS: 127.0.0.1
+      SEARXNG_PORT: 8088
+      SEARXNG_SECRET: ${SEARXNG_SECRET:?Set a random search secret}
+    volumes: ["./deploy/searxng.yml:/etc/searxng/settings.yml:ro"]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+    mem_limit: 512m
+  worker:
+    profiles: [worker]
+    build: {context: ., target: worker}
+    user: "${RESEARCH_UID:?Set the research-v2 UID}:${RESEARCH_GID:?Set the research-v2 GID}"
+    network_mode: host
+    env_file: .env
+    environment: {HOME: /tmp, RESEARCH_CONFIG: /app/config/egress.yaml}
+    read_only: true
+    tmpfs: [/tmp]
+    shm_size: 256m
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+    mem_limit: 1536m

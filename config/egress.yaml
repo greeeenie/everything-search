@@ -1,0 +1,26 @@
+default_region: EU
+domains:
+  ru: RU
+  ozon.ru: RU
+  avito.ru: RU
+  market.yandex.ru: RU
+  4pda.to: RU
+  forum.ixbt.com: RU
+  reddit.com: EU
+  github.com: EU
+  api.github.com: EU
+  x.com: EU
+  news.ycombinator.com: EU
+  hn.algolia.com: EU
+# Adding a shop permits discovery, not bypass of its access policy.
+marketplaces:
+  ozon: ozon.ru
+  avito: avito.ru
+  yandex_market: market.yandex.ru
+review_domains: [4pda.to, forum.ixbt.com, reddit.com, youtube.com]
+enabled_marketplaces: [ozon, avito, yandex_market]
+# Direct RU sockets run under the UID bypass in deploy/pi-egress.py.
+ru_proxy: ""
+eu_proxy: socks5://127.0.0.1:10808
+verify_egress: true
+expected_countries: {RU: RU, EU: LV}

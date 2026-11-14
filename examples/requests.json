@@ -1,0 +1,13 @@
+[
+  {"tool": "search_products", "arguments": {"query": "Wanbo Cube 2 Pro", "model": "Wanbo Cube 2 Pro", "marketplaces": ["ozon", "avito", "yandex_market"], "city": "Омск", "max_results": 9}},
+  {"tool": "compare_prices", "arguments": {"model": "Wanbo Cube 2 Pro", "condition": "new", "city": "Омск"}},
+  {"tool": "search_products", "arguments": {"query": "Raspberry Pi 5", "model": "Raspberry Pi 5", "marketplaces": ["adafruit.com", "shop.pimoroni.com"], "max_results": 6}},
+  {"tool": "get_product_details", "arguments": {"url": "https://www.adafruit.com/product/5813", "model": "Raspberry Pi 5"}},
+  {"tool": "get_product_reviews", "arguments": {"model": "Wanbo Cube 2 Pro", "domains": ["4pda.to", "forum.ixbt.com", "reddit.com"]}},
+  {"tool": "search_web", "arguments": {"query": "Wanbo Cube 2 Pro", "site": "ozon.ru", "region": "RU", "max_results": 3}},
+  {"tool": "read_page", "arguments": {"url": "https://docs.python.org/3/library/asyncio.html", "region": "EU", "refresh": true}},
+  {"tool": "research", "arguments": {"query": "Wanbo Cube 2 Pro опыт владельцев", "mode": "quick", "model": "Wanbo Cube 2 Pro", "city": "Омск"}},
+  {"tool": "research", "arguments": {"query": "Raspberry Pi 5 user experience", "mode": "deep", "model": "Raspberry Pi 5", "city": "Омск"}},
+  {"tool": "research", "arguments": {"query": "Steam Deck OLED battery life", "max_threads": 2}},
+  {"tool": "diagnose_egress", "arguments": {}}
+]

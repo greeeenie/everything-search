@@ -1,0 +1,25 @@
+[Unit]
+Description=Research extraction and optional Chromium worker
+Requires=research-egress.service
+After=network-online.target research-egress.service xray-multitool.service
+
+[Service]
+User=research-v2
+Group=research-v2
+WorkingDirectory=/opt/research-v2
+EnvironmentFile=/etc/research-v2/research.env
+Environment=HOME=/var/lib/research-v2
+ExecStart=/opt/research-v2/.venv/bin/python -m research_v2.worker
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/research-v2
+PrivateTmp=true
+UMask=0077
+MemoryMax=1536M
+TasksMax=256
+
+[Install]
+WantedBy=multi-user.target

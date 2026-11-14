@@ -1,0 +1,29 @@
+[Unit]
+Description=Private SearXNG discovery for Research
+After=network-online.target xray-multitool.service
+Wants=network-online.target
+
+[Service]
+User=searxng-research
+Group=searxng-research
+WorkingDirectory=/opt/searxng-research
+Environment=SEARXNG_SETTINGS_PATH=/etc/research-v2/searxng.yml
+EnvironmentFile=/etc/research-v2/searxng.env
+Environment=GIT_CONFIG_COUNT=1
+Environment=GIT_CONFIG_KEY_0=safe.directory
+Environment=GIT_CONFIG_VALUE_0=/opt/searxng-research
+ExecStart=/opt/searxng-research/.venv/bin/granian --interface wsgi --host 127.0.0.1 --port 8088 --workers 1 --blocking-threads 8 searx.webapp:app
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+StateDirectory=searxng-research
+ReadWritePaths=/var/lib/searxng-research
+PrivateTmp=true
+UMask=0077
+MemoryMax=512M
+TasksMax=96
+
+[Install]
+WantedBy=multi-user.target

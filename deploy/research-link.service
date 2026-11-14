@@ -1,0 +1,21 @@
+[Unit]
+Description=Outbound SSH connection exposing Pi MCP on VPS loopback
+After=network-online.target research-egress.service research-v2.service
+Requires=research-egress.service
+Wants=network-online.target research-v2.service
+
+[Service]
+User=research-v2
+Group=research-v2
+EnvironmentFile=/etc/research-v2/link.env
+ExecStart=/usr/bin/ssh -4 -NT -F /dev/null -i /var/lib/research-v2/link_key -o BatchMode=yes -o ExitOnForwardFailure=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/var/lib/research-v2/known_hosts -o ServerAliveInterval=20 -o ServerAliveCountMax=3 -o ConnectTimeout=10 -R 127.0.0.1:8766:127.0.0.1:8765 ${RESEARCH_VPS}
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
