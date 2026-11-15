@@ -1,0 +1,497 @@
+{
+  "checked_at": "2026-11-15T21:24:43.171960+00:00",
+  "upstream_version": "2.9.3",
+  "checks": [
+    {
+      "tool": "ozon_search",
+      "arguments": {
+        "query": "Wanbo Vali 1 Pro",
+        "page": 1
+      },
+      "is_error": false,
+      "elapsed": 21.31,
+      "returned": 8,
+      "meta": {
+        "source": "ozon_search",
+        "healthy": true,
+        "warnings": []
+      },
+      "sample": [
+        {
+          "sku": 6157936378,
+          "url": "https://www.ozon.ru/product/6157936378/",
+          "canonical_path": "/product/6157936378/",
+          "card_input": "/product/6157936378/",
+          "title": "Проектор для фильмов Wanbo Vali 1 Mini (WPC1M4) автофокус",
+          "price": 25644.0,
+          "price_original": 90990.0,
+          "rating": 4.8,
+          "rating_count": 2341,
+          "stock": "20 ед осталось"
+        },
+        {
+          "sku": 2229449678,
+          "url": "https://www.ozon.ru/product/2229449678/",
+          "canonical_path": "/product/2229449678/",
+          "card_input": "/product/2229449678/",
+          "title": "Проектор для фильмов портативный Wanbo Vali 1, Android 11, голосовой помощник, 1Гб+8Гб, 900 ANSI люмен (WPC14)",
+          "price": 25438.0,
+          "price_original": 59990.0,
+          "rating": 4.8,
+          "rating_count": 2341,
+          "stock": "3 ед осталось"
+        }
+      ]
+    },
+    {
+      "tool": "aliexpress_search",
+      "arguments": {
+        "query": "Wanbo Vali 1 Pro"
+      },
+      "is_error": false,
+      "elapsed": 15.59,
+      "returned": 9,
+      "meta": {
+        "source": "aliexpress_search",
+        "healthy": false,
+        "warnings": [
+          "6 tile(s) advertise a coupon price; price_rub carries the regular price and the coupon value is not part of the response — treat 'cheapest' ranking with care"
+        ]
+      },
+      "sample": [
+        {
+          "item_id": "1005011829396704",
+          "title": "Проектор WANBO Vali 1 Pro Google TV 14 900 ANSI 1080P",
+          "price_rub": 27439.0,
+          "old_price_rub": 68594.0,
+          "rating": 5.0,
+          "orders_count": 132,
+          "sku_id": "12000058168267936",
+          "url": "https://aliexpress.ru/item/1005011829396704.html?sku_id=12000058168267936"
+        },
+        {
+          "item_id": "1005013144767764",
+          "title": "Wanbo Vali 1 Pro Проектор 1080P",
+          "price_rub": 15548.0,
+          "old_price_rub": 31829.0,
+          "rating": null,
+          "orders_count": 1,
+          "sku_id": "12000060407446635",
+          "url": "https://aliexpress.ru/item/1005013144767764.html?sku_id=12000060407446635"
+        }
+      ]
+    },
+    {
+      "tool": "wb_search",
+      "arguments": {
+        "query": "Wanbo Vali 1 Pro",
+        "page": 1
+      },
+      "is_error": false,
+      "elapsed": 22.85,
+      "returned": 18,
+      "meta": {
+        "source": "wb_search",
+        "healthy": false,
+        "warnings": [
+          "dom_fallback: WB API refused this address (HTTP 403); read through the scraping Chrome, in the WB region set in that browser rather than dest",
+          "wb_dom_search: price_rub is the WB Wallet price on search tiles (the regular card price is equal or a few % higher and shows only on the product page — verify leaders with wb_card)"
+        ]
+      },
+      "sample": [
+        {
+          "nm_id": 1886889826,
+          "name": "Проектор портативный Vali 1 Pro бежевый",
+          "brand": "Wanbo",
+          "color": "",
+          "supplier": "",
+          "supplier_id": null,
+          "supplier_rating": null,
+          "review_rating": 4.6,
+          "feedbacks": 22,
+          "total_quantity": null,
+          "in_stock": true,
+          "price_rub": 42221.0,
+          "price_original_rub": 49021.0,
+          "wallet_price_rub": 42221.0,
+          "price_kind": "wallet",
+          "delivery": "26 ноября",
+          "warehouse": null,
+          "returns": null,
+          "cross_border": null,
+          "seller_legal_name": null,
+          "seller_country": null,
+          "seller_registration": null,
+          "seller_inn": null,
+          "warranty": null,
+          "original_badge": null,
+          "other_offers_count": null,
+          "other_offers_from_rub": null,
+          "other_offers": [],
+          "transport": "dom"
+        },
+        {
+          "nm_id": 2008439567,
+          "name": "Проектор портативный Vali 1 Pro",
+          "brand": "Wanbo",
+          "color": "",
+          "supplier": "",
+          "supplier_id": null,
+          "supplier_rating": null,
+          "review_rating": null,
+          "feedbacks": null,
+          "total_quantity": null,
+          "in_stock": true,
+          "price_rub": 54588.0,
+          "price_original_rub": null,
+          "wallet_price_rub": null,
+          "price_kind": "regular",
+          "delivery": "26 ноября",
+          "warehouse": null,
+          "returns": null,
+          "cross_border": null,
+          "seller_legal_name": null,
+          "seller_country": null,
+          "seller_registration": null,
+          "seller_inn": null,
+          "warranty": null,
+          "original_badge": null,
+          "other_offers_count": null,
+          "other_offers_from_rub": null,
+          "other_offers": [],
+          "transport": "dom"
+        }
+      ]
+    },
+    {
+      "tool": "yandex_search",
+      "arguments": {
+        "query": "Wanbo Vali 1 Pro",
+        "limit": 5
+      },
+      "is_error": false,
+      "elapsed": 1.23,
+      "returned": 5,
+      "meta": {
+        "source": "yandex_search",
+        "healthy": true,
+        "warnings": [],
+        "extraction": "zone"
+      },
+      "sample": [
+        {
+          "product_id": "6163423398",
+          "sku_id": "5783201114",
+          "title": "Проектор Wanbo Projector ToGo Pro синий",
+          "brand": "",
+          "seller": "ОНЛАЙНТРЕЙД.РУ",
+          "price_rub": 27376.0,
+          "price_with_plus": 26828.0,
+          "price_old_rub": 36340.0,
+          "currency": "RUR",
+          "rating": 5.0,
+          "rating_count": 3,
+          "in_stock": true,
+          "is_express": false,
+          "url": "https://market.yandex.ru/card/proyektor-wanbo-projector-togo-pro-siniy/6163423398",
+          "image": "https://avatars.mds.yandex.net/get-mpic/19302002/piccdee164a8e0982236d8a03faa8f7364b/orig"
+        },
+        {
+          "product_id": "239162986911076352",
+          "sku_id": "6521898904",
+          "title": "Проектор Wanbo Projector Vali 1 Pro синий, ресурс которой рассчитан на 20000 ч",
+          "brand": "",
+          "seller": "",
+          "price_rub": 46347.0,
+          "price_with_plus": 45420.0,
+          "price_old_rub": 88547.0,
+          "currency": "RUR",
+          "rating": null,
+          "rating_count": null,
+          "in_stock": true,
+          "is_express": false,
+          "url": "https://market.yandex.ru/card/proyektor-wanbo-projector-vali-1-pro-siniy/239162986911076352",
+          "image": "https://avatars.mds.yandex.net/get-mpic/20669950/pic99a8e71cee83199e001fd1422e0b8735/orig"
+        }
+      ]
+    },
+    {
+      "tool": "avito_search",
+      "arguments": {
+        "query": "Wanbo Vali 1 Pro",
+        "include_inactive": false
+      },
+      "is_error": true,
+      "elapsed": 21.14,
+      "result": [
+        {
+          "type": "text",
+          "text": "{\"error\": \"transport_down\", \"message\": \"Avito search fetch failed: HTTP 0 via cdp. CDP timeout after 20.0s\", \"retryable\": true}",
+          "annotations": null,
+          "meta": null
+        }
+      ]
+    },
+    {
+      "tool": "dns_search",
+      "arguments": {
+        "query": "проектор Wanbo"
+      },
+      "is_error": true,
+      "elapsed": 15.5,
+      "result": [
+        {
+          "type": "text",
+          "text": "{\"error\": \"transport_down\", \"message\": \"DNS navigation blocked (HTTP 401). If the Qrator check does not clear on its own within about 10 s, open dns-shop.ru in the scraping-profile Chrome, pass the check, then retry.\", \"retryable\": true}",
+          "annotations": null,
+          "meta": null
+        }
+      ]
+    },
+    {
+      "tool": "citilink_search",
+      "arguments": {
+        "query": "проектор"
+      },
+      "is_error": true,
+      "elapsed": 9.43,
+      "result": [
+        {
+          "type": "text",
+          "text": "{\"error\": \"transport_down\", \"message\": \"Citilink navigation blocked (HTTP 429). The Qrator challenge must pass in the scraping-profile Chrome — open citilink.ru there once, then retry.\", \"retryable\": true}",
+          "annotations": null,
+          "meta": null
+        }
+      ]
+    },
+    {
+      "tool": "lamoda_search",
+      "arguments": {
+        "query": "кроссовки nike"
+      },
+      "is_error": true,
+      "elapsed": 22.62,
+      "result": [
+        {
+          "type": "text",
+          "text": "{\"error\": \"parser_drift\", \"message\": \"rendered search page yielded zero SKUs — either the query matched nothing or the tile shape moved; verify manually\", \"retryable\": false}",
+          "annotations": null,
+          "meta": null
+        }
+      ]
+    },
+    {
+      "tool": "megamarket_search",
+      "arguments": {
+        "query": "Wanbo Vali 1 Pro"
+      },
+      "is_error": true,
+      "elapsed": 52.03,
+      "result": [
+        {
+          "type": "text",
+          "text": "{\"error\": \"transport_down\", \"message\": \"Megamarket navigation blocked (HTTP 403).\", \"retryable\": true}",
+          "annotations": null,
+          "meta": null
+        }
+      ]
+    },
+    {
+      "tool": "detmir_categories",
+      "arguments": {},
+      "is_error": false,
+      "elapsed": 0.33,
+      "returned": 27,
+      "meta": {
+        "source": "detmir_categories",
+        "healthy": true,
+        "warnings": [],
+        "cached": false
+      },
+      "sample": [
+        {
+          "category_id": 1,
+          "alias": "igry_i_igrushki",
+          "title": "Игрушки и игры",
+          "full_name": "Игрушки и игры",
+          "level": 1,
+          "products_count": 316446,
+          "parent_id": null,
+          "url": "https://www.detmir.ru/catalog/index/name/igry_i_igrushki/"
+        },
+        {
+          "category_id": 114677,
+          "alias": "detskaya_verhnyaya_odezhda",
+          "title": "Детская верхняя одежда",
+          "full_name": "Детская верхняя одежда",
+          "level": 1,
+          "products_count": 228761,
+          "parent_id": null,
+          "url": "https://www.detmir.ru/catalog/index/name/detskaya_verhnyaya_odezhda/"
+        }
+      ]
+    },
+    {
+      "tool": "compare_prices",
+      "arguments": {
+        "query": "Wanbo Vali 1 Pro",
+        "sources": [
+          "ozon",
+          "aliexpress",
+          "wildberries",
+          "yandex_market"
+        ],
+        "per_source_limit": 5,
+        "in_stock_only": true
+      },
+      "is_error": false,
+      "elapsed": 30.11,
+      "result": {
+        "complete": true,
+        "total_offers": 20,
+        "cheapest": {
+          "source": "yandex_market",
+          "product_id": "6163423398",
+          "variant_id": "5783201114",
+          "title": "Проектор Wanbo Projector ToGo Pro синий",
+          "brand": "",
+          "seller": "ОНЛАЙНТРЕЙД.РУ",
+          "price_rub": 27376.0,
+          "price_kind": "regular",
+          "currency": "rub",
+          "price_native": 27376.0,
+          "price_with_subscription_rub": 26828.0,
+          "rating": 5.0,
+          "rating_count": 3,
+          "in_stock": true,
+          "url": "https://market.yandex.ru/card/proyektor-wanbo-projector-togo-pro-siniy/6163423398",
+          "identity": {
+            "brand": "",
+            "model": "",
+            "mpn": "",
+            "gtin": "",
+            "variant_attributes": {},
+            "native_product_id": "",
+            "source": ""
+          },
+          "evidence": null
+        },
+        "cheapest_comparable": {
+          "source": "yandex_market",
+          "product_id": "6163423398",
+          "variant_id": "5783201114",
+          "title": "Проектор Wanbo Projector ToGo Pro синий",
+          "brand": "",
+          "seller": "ОНЛАЙНТРЕЙД.РУ",
+          "price_rub": 27376.0,
+          "price_kind": "regular",
+          "currency": "rub",
+          "price_native": 27376.0,
+          "price_with_subscription_rub": 26828.0,
+          "rating": 5.0,
+          "rating_count": 3,
+          "in_stock": true,
+          "url": "https://market.yandex.ru/card/proyektor-wanbo-projector-togo-pro-siniy/6163423398",
+          "identity": {
+            "brand": "",
+            "model": "",
+            "mpn": "",
+            "gtin": "",
+            "variant_attributes": {},
+            "native_product_id": "",
+            "source": ""
+          },
+          "evidence": null
+        },
+        "source_outcomes": [
+          {
+            "source": "ozon",
+            "status": "ok",
+            "detail": "5 results, 5 priced",
+            "warnings": [],
+            "offers_returned": 5,
+            "elapsed_ms": 29989,
+            "error_code": null,
+            "retryable": false,
+            "retry_after_s": null,
+            "retryable_now": null,
+            "retry_when": null,
+            "user_action": null,
+            "requires_user_action": false,
+            "challenge_type": null,
+            "handoff_expires_at": null,
+            "handoff_id": null
+          },
+          {
+            "source": "aliexpress",
+            "status": "ok",
+            "detail": "5 results, 5 priced",
+            "warnings": [
+              "6 tile(s) advertise a coupon price; price_rub carries the regular price and the coupon value is not part of the response — treat 'cheapest' ranking with care"
+            ],
+            "offers_returned": 5,
+            "elapsed_ms": 14525,
+            "error_code": null,
+            "retryable": false,
+            "retry_after_s": null,
+            "retryable_now": null,
+            "retry_when": null,
+            "user_action": null,
+            "requires_user_action": false,
+            "challenge_type": null,
+            "handoff_expires_at": null,
+            "handoff_id": null
+          },
+          {
+            "source": "wildberries",
+            "status": "ok",
+            "detail": "5 results, 2 priced",
+            "warnings": [
+              "dom_fallback: WB API refused this address (HTTP 403); read through the scraping Chrome, in the WB region set in that browser rather than dest",
+              "wb_dom_search: price_rub is the WB Wallet price on search tiles (the regular card price is equal or a few % higher and shows only on the product page — verify leaders with wb_card)"
+            ],
+            "offers_returned": 5,
+            "elapsed_ms": 26229,
+            "error_code": null,
+            "retryable": false,
+            "retry_after_s": null,
+            "retryable_now": null,
+            "retry_when": null,
+            "user_action": null,
+            "requires_user_action": false,
+            "challenge_type": null,
+            "handoff_expires_at": null,
+            "handoff_id": null
+          },
+          {
+            "source": "yandex_market",
+            "status": "ok",
+            "detail": "5 results, 5 priced",
+            "warnings": [],
+            "offers_returned": 5,
+            "elapsed_ms": 148,
+            "error_code": null,
+            "retryable": false,
+            "retry_after_s": null,
+            "retryable_now": null,
+            "retry_when": null,
+            "user_action": null,
+            "requires_user_action": false,
+            "challenge_type": null,
+            "handoff_expires_at": null,
+            "handoff_id": null
+          }
+        ],
+        "warnings": [
+          "stock_filter: excluded 12 priced offer(s) without confirmed stock",
+          "source_warning:aliexpress: 6 tile(s) advertise a coupon price; price_rub carries the regular price and the coupon value is not part of the response — treat 'cheapest' ranking with care",
+          "source_warning:wildberries: dom_fallback: WB API refused this address (HTTP 403); read through the scraping Chrome, in the WB region set in that browser rather than dest",
+          "source_warning:wildberries: wb_dom_search: price_rub is the WB Wallet price on search tiles (the regular card price is equal or a few % higher and shows only on the product page — verify leaders with wb_card)",
+          "conditional_price: wildberries/1886889826: 42221 RUB requires WB Wallet; not ranked",
+          "conditional_price: wildberries/1246730769: 22323 RUB requires WB Wallet; not ranked",
+          "conditional_price: wildberries/1246730808: 22323 RUB requires WB Wallet; not ranked"
+        ]
+      }
+    }
+  ]
+}

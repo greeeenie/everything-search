@@ -1,0 +1,1859 @@
+{
+  "upstream_commit": "f019e9ac41555c8509d50777cbafa0ab37fec8c5",
+  "tools": [
+    {
+      "name": "marketplace_sources",
+      "title": "Which Marketplaces Are Loaded",
+      "description": "List which connectors this unified server actually mounted.\n\n## Why this exists\n\nConnectors are imported defensively, so a missing dependency removes a\nmarketplace instead of killing the server. A source whose tools cannot\nanswer without configuration (MPStats without ``MPSTATS_MP_AUTH``) is left\nout for the same reason: its schemas would only ever produce an\n``auth_missing`` error. That is the right failure mode, but it is invisible\nfrom the client: absent tools look the same as a source that simply found\nnothing. Call this before concluding a marketplace has no results — if it\nis in ``skipped``, it was never queried at all.\n\nFull field list and error codes: `guide://marketplace/marketplace_sources`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "mounted": {},
+          "skipped": {},
+          "mounted_count": {},
+          "skipped_count": {},
+          "capabilities": {},
+          "needs_cdp": {},
+          "server_version": {}
+        }
+      },
+      "annotations": {
+        "title": "Which Marketplaces Are Loaded",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": false
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "marketplace_health",
+      "title": "Transport Health Before a Fan-Out",
+      "description": "Report transport health from local state, spending no navigation.\n\nAnswers, before a fan-out: is the scraping Chrome reachable (no autostart,\nnothing opened, nothing closed), which hosts are in breaker cooldown and for\nhow long, which challenge pages are retained, and which page a human opens\nto unblock each mounted source. It cannot prove a marketplace is up — only a\ncall can; it is the cheap pre-flight that replaces finding a dead Chrome by\nfailing.\n\nFull field list and error codes: `guide://marketplace/marketplace_health`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "cdp": {},
+          "budget": {},
+          "handoffs": {},
+          "unblock": {},
+          "server_version": {}
+        }
+      },
+      "annotations": {
+        "title": "Transport Health Before a Fan-Out",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": false
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "wb_card",
+      "title": "WB Product Cards",
+      "description": "Fetch product card data from WB v4 API.\n\nReturns prices in rubles, brand, supplier, supplier_rating, review_rating,\nfeedbacks count, total_quantity for up to 100 SKUs.\n\nprice_rub is None when the SKU has no sellable price — never 0; an unknown SKU is NOT an error, it simply does not appear in items.\n\nFull field list and error codes: `guide://wb/wb_card`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "nm_ids": {
+            "description": "1..100 nmId integers (positive). Batch product cards from WB v4 API.",
+            "items": {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": "array"
+          },
+          "dest": {
+            "default": "-1257786",
+            "description": "Region ID. Default -1257786 (Moscow). Required for valid prices/stocks. Other examples: -1257786 Moscow, -1029256 Saint Petersburg.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nm_ids"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "dest": {},
+          "count": {},
+          "items": {},
+          "meta": {}
+        }
+      },
+      "annotations": {
+        "title": "WB Product Cards",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "wb_root_info",
+      "title": "WB Root Info (imt_id)",
+      "description": "Fetch full card metadata from basket CDN. Returns imt_id (root_id) for review pool.\n\nAll variants of one product share imt_id. Reviews indexed by imt_id, NOT by nmId.\n\nFull field list and error codes: `guide://wb/wb_root_info`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "nm_id": {
+            "description": "nmId (positive integer). The SKU whose basket CDN card.json is fetched for imt_id resolution.",
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "nm_id"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "imt_id": {},
+          "subj_name": {},
+          "subj_root_name": {},
+          "colors": {},
+          "compositions": {},
+          "options": {},
+          "host_used": {},
+          "meta": {}
+        }
+      },
+      "annotations": {
+        "title": "WB Root Info (imt_id)",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "wb_reviews",
+      "title": "WB Reviews by imt_id",
+      "description": "Fetch reviews by imt_id (root_id from wb_root_info).\n\nAll product variants share one review pool, indexed by imt_id NOT nmId.\n\nThe WB feedbacks endpoint returns a fixed pool (~1000 most-recent reviews,\nnewest-first) and IGNORES server-side order params (verified before v1.0.0, July 2026), so\n`sort` is applied CLIENT-SIDE over that pool. To surface complaints, \"worst\"\nreorders the returned pool by lowest rating first.\n\nan empty pool is NOT an error — a healthy response with zero feedbacks.\n\nFull field list and error codes: `guide://wb/wb_reviews`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "imt_id": {
+            "description": "Root ID (imt_id) from wb_root_info. All product variants share one review pool indexed by imt_id, NOT by nmId.",
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "limit": {
+            "default": 20,
+            "description": "Max review texts to return (1..100). Counts always full.",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "sort": {
+            "default": "recent",
+            "description": "\"recent\"/\"newest\"/\"default\" (as returned, newest-first), \"best\"/\"highest\" (highest rating first), \"worst\"/\"lowest\"/\"complaints\" (LOWEST rating first — finds downsides). Reorders the ~1000-review pool WB returns, not all feedbacks.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "imt_id"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "imt_id": {},
+          "sort": {},
+          "pool_size": {},
+          "feedback_count": {},
+          "valuation": {},
+          "valuation_distribution": {},
+          "feedbacks": {},
+          "host_used": {},
+          "meta": {}
+        }
+      },
+      "annotations": {
+        "title": "WB Reviews by imt_id",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "wb_questions",
+      "title": "WB Buyer Questions by imt_id",
+      "description": "Fetch buyer questions and seller answers by imt_id (root_id from wb_root_info).\n\nAnswers this tool exists for: buyers ask what a listing omits — \"does it fit\na 60cm opening\", \"is the cable included\", \"is this the 10A or the 16A model\" —\nand the seller's reply is often the only public statement of that fact.\nReviews describe the experience of owning the product; questions clarify what\nit actually is.\n\nKeyed by imt_id, exactly like ``wb_reviews``: every colour and size variant\nshares one question pool. Passing an nmId returns an empty pool with no error,\nso resolve the root id via ``wb_root_info`` first.\n\nan empty pool is NOT an error — it means nobody has asked yet.\n\nFull field list and error codes: `guide://wb/wb_questions`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "imt_id": {
+            "description": "Root ID (imt_id) from wb_root_info. Questions are pooled per imt_id across every variant, NOT by nmId.",
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "limit": {
+            "default": 30,
+            "description": "Max questions to return (1..100). Fetched in pages of 30, which is the upstream cap.",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "skip": {
+            "default": 0,
+            "description": "Offset into the question pool, for walking past the first page.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "answered_only": {
+            "default": false,
+            "description": "Return only questions the seller has answered. Unanswered questions carry no product information.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "imt_id"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "imt_id": {},
+          "total_available": {},
+          "returned": {},
+          "skip": {},
+          "answered_count": {},
+          "has_more": {},
+          "questions": {},
+          "meta": {}
+        }
+      },
+      "annotations": {
+        "title": "WB Buyer Questions by imt_id",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "wb_search",
+      "title": "WB Catalog Search",
+      "description": "Search WB catalog by text query.\n\nUses search.wb.ru v9 product data, with a warned legacy IDs/card fallback.\nWB_TRANSPORT=dom reads the rendered grid in the operator's Chrome region.\n\nzero matches returns WbNoResultsResponse (status \"no_results\"), which is NOT an error; an unknown total stays null, and a failed read never becomes no_results.\n\nFull field list and error codes: `guide://wb/wb_search`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "description": "Russian text search query for the WB catalog.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "dest": {
+            "default": "-1257786",
+            "description": "Region ID. Default -1257786 (Moscow). Required for valid prices/stocks.",
+            "type": "string"
+          },
+          "page": {
+            "default": 1,
+            "description": "Page number 1..20 (each page returns ~30 IDs from the long list).",
+            "maximum": 20,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "result": {}
+        },
+        "x-fastmcp-wrap-result": true,
+        "required": [
+          "result"
+        ]
+      },
+      "annotations": {
+        "title": "WB Catalog Search",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "wb_seller",
+      "title": "WB Seller Legal Info",
+      "description": "Look up the registered legal entity behind a WB seller.\n\nAnswers \"who actually ships this?\" — the question a marketplace listing is\nworst at. Returns the registered name, tax ids (INN/KPP/OGRN) and legal\naddress, which is how you tell an official brand store from a reseller\ntrading under a lookalike name, and how you spot several storefronts sharing\none entity.\n\nChain from `wb_card`: its `supplier_id` field feeds straight into this tool.\n\nFull field list and error codes: `guide://wb/wb_seller`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "supplier_id": {
+            "description": "WB supplier id (positive integer). Get it from wb_card's supplier_id field.",
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "supplier_id"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "supplier_id": {},
+          "name": {},
+          "full_name": {},
+          "trademark": {},
+          "inn": {},
+          "kpp": {},
+          "ogrn": {},
+          "legal_address": {},
+          "taxpayer_code": {},
+          "foreign_codes": {},
+          "host_used": {},
+          "meta": {}
+        }
+      },
+      "annotations": {
+        "title": "WB Seller Legal Info",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "wb_categories",
+      "title": "WB Catalog Categories",
+      "description": "Browse the Wildberries catalog tree.\n\nUse this to discover what exists before searching: `wb_search` needs a query\nstring, but a shopper's question is often \"what categories of humidifiers are\nthere?\". Each node carries WB's own `shard` and `query` selectors, which are\nthe addressing needed to pull a category feed.\n\nThe live menu is ~800 KB, so responses are always a bounded slice — start at\n'top', then expand the branch you care about.\n\nFull field list and error codes: `guide://wb/wb_categories`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "root": {
+            "default": "top",
+            "description": "'top' for the top-level sections, or a category name / URL path / id to expand (e.g. 'Электроника', '/catalog/elektronika', '8126').",
+            "maxLength": 200,
+            "type": "string"
+          },
+          "max_depth": {
+            "default": 1,
+            "description": "How many levels below the root to include. 1 = direct children only.",
+            "maximum": 3,
+            "minimum": 1,
+            "type": "integer"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "root": {},
+          "max_depth": {},
+          "total_returned": {},
+          "truncated": {},
+          "items": {},
+          "host_used": {},
+          "meta": {}
+        }
+      },
+      "annotations": {
+        "title": "WB Catalog Categories",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "wb_category_products",
+      "title": "WB Category Product Listing",
+      "description": "List the products in a catalog category, using the shard and query from wb_categories.\n\nThis closes the loop `wb_categories` opens. That tool hands back WB's own\n`shard` and `query` selectors — the address of a category feed — and this is\nthe tool that fetches it. Browsing \"what humidifiers exist\" no longer requires\ninventing a search phrase and hoping WB's relevance ranking agrees with you.\n\nItems come back in the same shape `wb_search` and `wb_card` return, so a\ncategory walk and a text search are directly comparable.\n\n**Not every category has a feed.** WB marks those with the shard\n`blackhole`, and several of its largest sections (smartphones, laptops, TV and\naudio) are among them: they exist as navigation, not as a listable endpoint.\nAsking for one raises a clear error naming the alternative rather than\nreturning an empty list, because an empty list here would read as \"this\ncategory has no products\", which is false.\n\nprice_rub is None when the SKU has no sellable price — never 0.\n\nFull field list and error codes: `guide://wb/wb_category_products`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "shard": {
+            "description": "WB catalog shard from wb_categories, e.g. 'electronic58'. The literal 'blackhole' means the category has no listable feed.",
+            "maxLength": 120,
+            "type": "string"
+          },
+          "query": {
+            "description": "WB catalog selector from wb_categories, e.g. 'cat=9845' or 'subject=1234'.",
+            "maxLength": 200,
+            "type": "string"
+          },
+          "page": {
+            "default": 1,
+            "description": "Page number. Each page carries up to 100 products.",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "sort": {
+            "default": "popular",
+            "description": "Upstream ordering: popular, priceup, pricedown, newly, rate, or benefit.",
+            "type": "string"
+          },
+          "dest": {
+            "default": "",
+            "description": "WB region id. Defaults to WB_DEFAULT_DEST (Moscow). Prices and stock are region-specific.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "shard",
+          "query"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "shard": {},
+          "query": {},
+          "page": {},
+          "sort": {},
+          "dest": {},
+          "count": {},
+          "has_more": {},
+          "items": {},
+          "meta": {}
+        }
+      },
+      "annotations": {
+        "title": "WB Category Product Listing",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "ozon_card",
+      "title": "Ozon Product Card",
+      "description": "Fetch Ozon product card data via composer-api.bx.\n\nTier-1 (curl_cffi) tried first. Falls back to Tier-2 (Chrome CDP at port\n9222) when Tier-1 hits Cloudflare 403. Tier-2 requires the operator running Chrome\nvia scripts/start_chrome_cdp.ps1 (Windows) or scripts/start_chrome_cdp.sh (Linux/macOS) first.\n\nfields the page does not carry are None, never 0; an empty payload is a healthy response, not an error.\n\nFull field list and error codes: `guide://ozon/ozon_card`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "sku_or_path": {
+            "description": "SKU integer-as-string, full Ozon URL, or /product/<digits>/ path. Other paths are rejected (SSRF prevention).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sku_or_path"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "status": {},
+          "price": {},
+          "card_price": {},
+          "price_original": {},
+          "is_available": {},
+          "rating_score": {},
+          "rating_count": {},
+          "title": {},
+          "seller": {},
+          "characteristics": {},
+          "url": {},
+          "tier_used": {},
+          "_meta": {}
+        }
+      },
+      "annotations": {
+        "title": "Ozon Product Card",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "ozon_reviews",
+      "title": "Ozon Product Reviews",
+      "description": "Fetch Ozon product review texts + star distribution via composer-api.bx.\n\nTier-1 (curl_cffi) tried first, Tier-2 (Chrome CDP) fallback — same path\nas ozon_card. Returns review texts (comment/positive/negative), per-review\nscore, helpfulness votes, author first name, date, plus the overall star\ndistribution and total count.\n\nPages are walked automatically (30/page) until `limit` texts are collected\nor pages run out, deduplicating by review uuid. Hard cap of 10 pages.\n\n## Reviews are pooled per card family, not per product\n\nOzon shows one shared pool for every variant of a card, and those variants\nare frequently different products — different wattage, different brand. So\n`rating_score` and `distribution` describe the POOL, not the SKU asked for.\nEach review carries `item_id`, the SKU it is really about; `own_reviews`\ncounts the returned reviews whose `item_id` matches `requested_item_id`, and\n`pool_variants` names every SKU in the pool. Filter by `item_id` before\ndrawing any conclusion about a product, and say so when `own_reviews` is 0 —\na headline 4.8 can be borrowed entirely from neighbours.\n\na later page that fails after reviews were collected is a PARTIAL SUCCESS (partial=True, stop_reason set), not an error.\n\nFull field list and error codes: `guide://ozon/ozon_reviews`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "sku_or_path": {
+            "description": "SKU integer-as-string, full Ozon URL, or /product/<digits>/ path. Normalized to /product/<digits>/reviews/ (SSRF-allowlisted).",
+            "type": "string"
+          },
+          "limit": {
+            "default": 20,
+            "description": "Max review texts to return (1..100). Distribution+total always full.",
+            "type": "integer"
+          },
+          "sort": {
+            "default": "recent",
+            "description": "Review ordering. Aliases: \"recent\"/\"default\" -> Ozon's new-and-helpful order (not strict chronology), \"best\"/\"highest\" -> highest rated first, \"worst\"/\"lowest\"/\"complaints\" -> LOWEST rated first. Raw API values usefulness_desc/score_desc/score_asc also accepted.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sku_or_path"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "status": {},
+          "url": {},
+          "tier_used": {},
+          "sort": {},
+          "rating_score": {},
+          "reviews_count": {},
+          "distribution": {},
+          "pages_fetched": {},
+          "returned": {},
+          "partial": {},
+          "stop_reason": {},
+          "last_error": {},
+          "requested_limit": {},
+          "reviews": {},
+          "requested_item_id": {},
+          "own_reviews": {},
+          "pool_variants": {},
+          "_meta": {}
+        }
+      },
+      "annotations": {
+        "title": "Ozon Product Reviews",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "ozon_search",
+      "title": "Ozon Catalog Search",
+      "description": "Search Ozon catalog. Tier-1 curl_cffi → Tier-2 CDP fallback.\n\nReturns sku/title/price/rating per item. Schema parses Nov 2026\n`tileGridDesktop-*` widgets with `mainState` atom structure.\n\nzero parsed items is NOT an error, but not healthy either: count=0 carries a\n`no_items` warning (meta.healthy=false).\n\nFull field list and error codes: `guide://ozon/ozon_search`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "description": "Russian search text.",
+            "type": "string"
+          },
+          "page": {
+            "default": 1,
+            "description": "Result page (1..10).",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "status": {},
+          "query": {},
+          "page": {},
+          "tier_used": {},
+          "count": {},
+          "parsed_count": {},
+          "truncated": {},
+          "items": {},
+          "_meta": {}
+        }
+      },
+      "annotations": {
+        "title": "Ozon Catalog Search",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "yandex_search",
+      "title": "Yandex Market Search",
+      "description": "Search Yandex Market and return products with both prices, ratings and sellers.\n\nYandex Market aggregates many sellers per product, which makes it the best\nsingle source for \"what does this cost right now\" across the Russian market —\nincluding goods Wildberries and Ozon do not carry.\n\nEach result reports `price_rub` (what anyone pays — the price the SERP\nsnippet's cart button charges, cross-verified against product cards) and\n`price_with_plus` (requires a Yandex Plus subscription, typically 25-30%\nlower). Prefer `price_rub` when quoting a price to a person;\n`price_old_rub` is the struck-through reference price and must never be\nquoted as the price.\n\nA search row describes the SERP snippet's offer, which may be a different\nmember of the product family than the offer `yandex_card` for the same\n`product_id` defaults to (live example: search shows REDMOND KM243 sku\n4668084807 while the card for that id defaults to a KM245 offer at another\nprice). The row is SERP-faithful — reconcile it with a card by `sku_id`,\nnot by the product URL.\n\nNote `rating_count` counts star ratings, not written reviews; the written\ncount is available per product via `yandex_card`.\n\nprice_rub is None when absent — never 0; zero results is NOT an error: the page's own \"nothing found\" banner makes the empty answer healthy, and meta.warnings says so.\n\nFull field list and error codes: `guide://yandex/yandex_search`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "description": "Free-text search query in Russian, e.g. 'iphone 15' or 'стиральная машина узкая'.",
+            "maxLength": 200,
+            "minLength": 2,
+            "type": "string"
+          },
+          "page": {
+            "default": 1,
+            "description": "Page number, 1-based.",
+            "maximum": 30,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "limit": {
+            "default": 12,
+            "description": "Maximum products to return from the page.",
+            "maximum": 48,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "query": {},
+          "page": {},
+          "page_count": {},
+          "total_available": {},
+          "has_next_page": {},
+          "returned": {},
+          "items": {},
+          "meta": {}
+        }
+      },
+      "annotations": {
+        "title": "Yandex Market Search",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "yandex_card",
+      "title": "Yandex Market Product Card",
+      "description": "Fetch full detail for a Yandex Market product: prices, rating breakdown, reviews.\n\nTwo things here are hard to get anywhere else. The **star distribution**\n(`rating_stars`) shows whether a 4.8 average hides a cluster of one-star\ncomplaints. And **reviews arrive with the card** in one request, complete with\npros, cons and helpfulness votes.\n\nReviews are capped at the ~13 Yandex renders server-side; the remainder load\nthrough an API this connector deliberately does not touch.\n\nprice_rub is the explicit everyday price (null when the card carries only a Plus price) — never 0; price_with_plus requires a subscription and never ranks.\n\nFull field list and error codes: `guide://yandex/yandex_card`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "product_id": {
+            "description": "Numeric Yandex Market product id — take it from yandex_search results.",
+            "maxLength": 32,
+            "minLength": 1,
+            "type": "string"
+          },
+          "include_reviews": {
+            "default": true,
+            "description": "Include the server-rendered reviews (first ~13).",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "product_id"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "product_id": {},
+          "sku_id": {},
+          "title": {},
+          "brand": {},
+          "seller": {},
+          "description": {},
+          "image": {},
+          "price_rub": {},
+          "price_with_plus": {},
+          "price_before_discount_rub": {},
+          "discount_percent": {},
+          "currency": {},
+          "offers_count": {},
+          "rating": {},
+          "rating_count": {},
+          "review_count": {},
+          "rating_stars": {},
+          "reviews": {},
+          "url": {},
+          "meta": {}
+        }
+      },
+      "annotations": {
+        "title": "Yandex Market Product Card",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "detmir_card",
+      "title": "Detsky Mir Product Card",
+      "description": "Fetch price, rating, stock and seller for one Detsky Mir product.\n\nCovers the kids-and-baby category that the general marketplaces cover\nunevenly, and distinguishes Detsky Mir's own stock from third-party\nmarketplace sellers.\n\n**Region matters most here.** ``store_count`` is the number of physical shops\nholding the item, and it swings hard by city — one item verified live sat in\n152 Moscow stores, 37 in St Petersburg, 2 in Khabarovsk. Pass ``region`` to\nask about a specific city; it overrides ``DETMIR_REGION`` for this call only,\nso one session can compare cities.\n\nprice_rub is None when the card states no price — never 0.\n\nFull field list and error codes: `guide://detmir/detmir_card`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "product_id": {
+            "description": "Numeric Detsky Mir product id — the digits in /product/index/id/<id>/.",
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "region": {
+            "default": "",
+            "description": "ISO region code for prices and offline stock, e.g. 'RU-MOW' or 'RU-SPE'. Defaults to DETMIR_REGION.",
+            "maxLength": 16,
+            "type": "string"
+          }
+        },
+        "required": [
+          "product_id"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "product": {},
+          "region": {},
+          "meta": {}
+        }
+      },
+      "annotations": {
+        "title": "Detsky Mir Product Card",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "detmir_category",
+      "title": "Detsky Mir Category Listing",
+      "description": "List products in a Detsky Mir category, with the total match count.\n\nThis is the reliable way to enumerate the catalog: unlike text search, it is a\nreal JSON endpoint with proper pagination and an upstream total, so it\nsupports \"what's available and how much does it cost\" without scraping.\n\nan empty page is NOT an error: it is reported through meta.warnings.\n\nFull field list and error codes: `guide://detmir/detmir_category`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "alias": {
+            "description": "Category slug from a catalog URL, e.g. 'pups' in /catalog/index/name/pups/.",
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          },
+          "limit": {
+            "default": 20,
+            "description": "Items per page.",
+            "maximum": 60,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "offset": {
+            "default": 0,
+            "description": "Items to skip, for pagination.",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "region": {
+            "default": "",
+            "description": "ISO region code for prices and offline stock, e.g. 'RU-MOW' or 'RU-SPE'. Defaults to DETMIR_REGION.",
+            "maxLength": 16,
+            "type": "string"
+          }
+        },
+        "required": [
+          "alias"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "query": {},
+          "mode": {},
+          "total_available": {},
+          "category_title": {},
+          "returned": {},
+          "offset": {},
+          "items": {},
+          "region": {},
+          "meta": {}
+        }
+      },
+      "annotations": {
+        "title": "Detsky Mir Category Listing",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "detmir_categories",
+      "title": "Detsky Mir Catalog Categories",
+      "description": "Browse the Detsky Mir catalog tree and get the aliases `detmir_category` needs.\n\nThis is the discovery step: Detsky Mir has **no working text search** (see the\nmodule docstring), so the way to find products is to walk the tree and then\nlist a category. Each node carries its `alias` and a `products_count`, so you\ncan see where the inventory actually is before fetching a listing.\n\nFull field list and error codes: `guide://detmir/detmir_categories`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "parent": {
+            "default": "top",
+            "description": "'top' for the 27 top-level sections, or a parent category id to list its children.",
+            "maxLength": 80,
+            "type": "string"
+          },
+          "limit": {
+            "default": 30,
+            "description": "Maximum categories to return.",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "region": {
+            "default": "",
+            "description": "ISO region code for prices and offline stock, e.g. 'RU-MOW' or 'RU-SPE'. Defaults to DETMIR_REGION.",
+            "maxLength": 16,
+            "type": "string"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "parent": {},
+          "returned": {},
+          "total_available": {},
+          "items": {},
+          "region": {},
+          "meta": {}
+        }
+      },
+      "annotations": {
+        "title": "Detsky Mir Catalog Categories",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "avito_search",
+      "title": "Avito Search",
+      "description": "Search Avito listings via the internal js/items API.\n\nprice_rub is None for an ad without a price — never 0.\nEach hit carries availability from Avito's own isReserved flag; reserved\nhits are kept unless include_inactive=false.\n\nFull field list and error codes: `guide://avito/avito_search`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "description": "Search text, e.g. 'thinkpad x1 carbon'",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "page": {
+            "default": 1,
+            "description": "Result page (1-based)",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "location_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Avito location id; default AVITO_LOCATION_ID (637640 = Moscow)"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Optional Avito category id to narrow the search"
+          },
+          "include_inactive": {
+            "default": true,
+            "description": "Keep reserved hits (availability=reserved), the default. false drops them from items and counts them in excluded_inactive; total_count still includes them",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "status": {},
+          "query": {},
+          "page": {},
+          "location_id": {},
+          "tier_used": {},
+          "count": {},
+          "total_count": {},
+          "items": {},
+          "excluded_inactive": {},
+          "_meta": {}
+        }
+      },
+      "annotations": {
+        "title": "Avito Search",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "avito_card",
+      "title": "Avito Item Card",
+      "description": "Read an Avito item over CDP: Product JSON-LD first, item-view DOM fallback.\n\nFull avito.ru URLs need an item-page path (/1234567890, /slug_1234567890 or\n/city/category/slug_1234567890); bare ids and slug paths use /{id}.\nprice_rub is None when absent or non-RUB — never 0. Deal terms, seller\nchecks, city/stations, date and views come from the same page; address and\ncoords for companies only; availability from service signals only.\n\nFull field list and error codes: `guide://avito/avito_card`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "item_id_or_url": {
+            "description": "Item id, slug path or full avito.ru URL",
+            "maxLength": 300,
+            "minLength": 1,
+            "type": "string"
+          },
+          "photos": {
+            "default": 0,
+            "description": "Opt-in, costly in tokens: attach up to N listing photos (active ads only). Photos belong to the seller; do not describe faces, documents or plates in them. 0 = off. Details: guide://avito/avito_card",
+            "maximum": 3,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "item_id_or_url"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "status": {},
+          "item_id": {},
+          "title": {},
+          "price_rub": {},
+          "old_price_rub": {},
+          "discount_percent": {},
+          "description": {},
+          "location": {},
+          "posted_at": {},
+          "views": {},
+          "images": {},
+          "seller": {},
+          "url": {},
+          "tier_used": {},
+          "availability": {},
+          "availability_evidence": {},
+          "condition": {},
+          "params": {},
+          "delivery_available": {},
+          "delivery_services": {},
+          "payment_on_delivery": {},
+          "safe_deal": {},
+          "price_offer_enabled": {},
+          "bargain": {},
+          "item_badges": {},
+          "metro": {},
+          "address": {},
+          "coords": {},
+          "today_views": {},
+          "photos": {},
+          "photos_status": {},
+          "_meta": {}
+        }
+      },
+      "annotations": {
+        "title": "Avito Item Card",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "avito_seller",
+      "title": "Avito Seller Profile",
+      "description": "Read an Avito seller's rendered profile page over paced, allowlisted CDP.\n\nAccept an avito.ru /brands/<id> or /user/<id>/profile URL/path (query and\nfragment stripped), or a bare hash/id. Only a bare 32-hex hash builds\n/brands/<id>; every other valid bare id builds /user/<id>/profile.\nLive 2026-10-12: /web/1/js/items ignores userId and cannot identify sellers.\n\nactive_items is None by design (the page shows no such total), and unknown reputation fields are None — never 0.\n\nFull field list and error codes: `guide://avito/avito_seller`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "seller_id_or_url": {
+            "description": "Seller id or profile URL from a card/search hit",
+            "maxLength": 300,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "seller_id_or_url"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "status": {},
+          "seller": {},
+          "active_items": {},
+          "tier_used": {},
+          "_meta": {}
+        }
+      },
+      "annotations": {
+        "title": "Avito Seller Profile",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "megamarket_search",
+      "title": "Megamarket Search",
+      "description": "Search the Megamarket catalog via the mobile API, inside the operator's Chrome.\n\nPrices and availability depend on the delivery address: by default a public\ncity-level one (MEGAMARKET_ADDRESS); only with MEGAMARKET_USE_PROFILE_ADDRESS=1\ndoes the logged-in profile's default address win — that reads a private\naccount endpoint, and the response says so in _meta.warnings\n(\"address_source:profile\" plus a \"profile_address_read\" notice).\nAny warning that is not prefixed \"info:\" makes _meta.healthy false — the\naddress warnings above, empty_result, no_prices_on_page and shape drift; the\ndefault suggest path answers healthy with no address warning.\n\nprice_rub is None when the tile states no price — never 0.\n\nFull field list and error codes: `guide://megamarket/megamarket_search`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "description": "Search text, e.g. 'стиральная машина'",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "status": {},
+          "query": {},
+          "tier_used": {},
+          "count": {},
+          "total_count": {},
+          "items": {},
+          "_meta": {}
+        }
+      },
+      "annotations": {
+        "title": "Megamarket Search",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "megamarket_card",
+      "title": "Megamarket Product Card",
+      "description": "Fetch one Megamarket product card.\n\nprice_rub and old_price_rub are None when the card states none — never 0.\n\nFull field list and error codes: `guide://megamarket/megamarket_card`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "item_id_or_url": {
+            "description": "Goods id or megamarket.ru product URL",
+            "maxLength": 300,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "item_id_or_url"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "status": {},
+          "item_id": {},
+          "title": {},
+          "price_rub": {},
+          "old_price_rub": {},
+          "is_available": {},
+          "rating": {},
+          "rating_count": {},
+          "url": {},
+          "tier_used": {},
+          "_meta": {}
+        }
+      },
+      "annotations": {
+        "title": "Megamarket Product Card",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "lamoda_search",
+      "title": "Lamoda Search",
+      "description": "Search Lamoda, rendered in the operator's Chrome (discovery is blocked tier 1).\n\nprice_rub is None when the tile states no price — never 0; Lamoda exposes no ratings.\n\nFull field list and error codes: `guide://lamoda/lamoda_search`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "description": "Search text, e.g. 'кроссовки nike'",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "status": {},
+          "query": {},
+          "tier_used": {},
+          "count": {},
+          "items": {},
+          "_meta": {}
+        }
+      },
+      "annotations": {
+        "title": "Lamoda Search",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "lamoda_card",
+      "title": "Lamoda Product Card",
+      "description": "Fetch a GraphQL card over HTTPS, falling back to an in-page Chrome POST.\n\nFull field list and error codes: `guide://lamoda/lamoda_card`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "sku_or_url": {
+            "description": "SKU (MP002XM1RMM3) or lamoda.ru product URL",
+            "maxLength": 300,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "sku_or_url"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "status": {},
+          "sku": {},
+          "title": {},
+          "brand": {},
+          "price_rub": {},
+          "old_price_rub": {},
+          "is_available": {},
+          "sizes": {},
+          "url": {},
+          "tier_used": {},
+          "_meta": {}
+        }
+      },
+      "annotations": {
+        "title": "Lamoda Product Card",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "dns_search",
+      "title": "DNS-Shop Search",
+      "description": "Search DNS-Shop, rendered in the operator's Chrome.\n\nprice_rub is None when the tile states no price — never 0.\n\nFull field list and error codes: `guide://dns/dns_search`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "description": "Search text, e.g. 'ноутбук lenovo'",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "status": {},
+          "query": {},
+          "tier_used": {},
+          "count": {},
+          "items": {},
+          "_meta": {}
+        }
+      },
+      "annotations": {
+        "title": "DNS-Shop Search",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "dns_card",
+      "title": "DNS-Shop Product Card",
+      "description": "Fetch one DNS-Shop product card.\n\nprice_rub and old_price_rub are None when the card states none — never 0.\n\nFull field list and error codes: `guide://dns/dns_card`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "product_url": {
+            "description": "dns-shop.ru product URL containing /product/<id>/, e.g. /product/b7a1667f9b19ed20/",
+            "maxLength": 400,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "product_url"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "status": {},
+          "product_id": {},
+          "title": {},
+          "price_rub": {},
+          "old_price_rub": {},
+          "is_available": {},
+          "url": {},
+          "tier_used": {},
+          "_meta": {}
+        }
+      },
+      "annotations": {
+        "title": "DNS-Shop Product Card",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "citilink_search",
+      "title": "Citilink Search",
+      "description": "Search Citilink, rendered in the operator's Chrome.\n\nprice_rub is None when the tile states no price — never 0.\n\nFull field list and error codes: `guide://citilink/citilink_search`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "description": "Search text, e.g. 'ноутбук lenovo'",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "status": {},
+          "query": {},
+          "tier_used": {},
+          "count": {},
+          "items": {},
+          "_meta": {}
+        }
+      },
+      "annotations": {
+        "title": "Citilink Search",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "citilink_card",
+      "title": "Citilink Product Card",
+      "description": "Fetch one Citilink product card.\n\nprice_rub and old_price_rub are None when the card states none — never 0.\n\nFull field list and error codes: `guide://citilink/citilink_card`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "product_url": {
+            "description": "citilink.ru product URL containing /product/<slug>/, e.g. /product/noutbuk-lenovo-2169270/",
+            "maxLength": 400,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "product_url"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "status": {},
+          "product_id": {},
+          "title": {},
+          "price_rub": {},
+          "old_price_rub": {},
+          "is_available": {},
+          "url": {},
+          "tier_used": {},
+          "_meta": {}
+        }
+      },
+      "annotations": {
+        "title": "Citilink Product Card",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "aliexpress_search",
+      "title": "AliExpress Search",
+      "description": "Search AliExpress, rendered in the operator's Chrome.\n\nprice_rub is None when the tile states no price — never 0; zero tiles with no challenge is parser drift, not an empty catalog.\n\nFull field list and error codes: `guide://aliexpress/aliexpress_search`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "description": "Search text, e.g. 'умные часы'",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "status": {},
+          "query": {},
+          "tier_used": {},
+          "count": {},
+          "items": {},
+          "_meta": {}
+        }
+      },
+      "annotations": {
+        "title": "AliExpress Search",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "aliexpress_card",
+      "title": "AliExpress Product Card",
+      "description": "Fetch one AliExpress product card, rendered in the operator's Chrome.\n\nReview TEXTS are deliberately not exposed: they require navigating the\nreview tab, which x5sec challenges; this tool returns the rating and the\norder count instead.\n\nprice_rub is None when the card states no price — never 0.\n\nFull field list and error codes: `guide://aliexpress/aliexpress_card`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "item_id_or_url": {
+            "description": "AliExpress item id (9-16 digits) or aliexpress.ru item URL, e.g. /item/1005010003103368.html",
+            "maxLength": 400,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "item_id_or_url"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "status": {},
+          "item_id": {},
+          "title": {},
+          "price_rub": {},
+          "old_price_rub": {},
+          "rating": {},
+          "orders_count": {},
+          "url": {},
+          "tier_used": {},
+          "_meta": {}
+        }
+      },
+      "annotations": {
+        "title": "AliExpress Product Card",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "compare_prices",
+      "title": "Compare Prices Across Russian Marketplaces",
+      "description": "Price one product across every configured Russian marketplace at once.\n\nQueries each marketplace concurrently and returns a single list ranked by\nprice, plus a per-source report of what answered and what did not. This is\nthe tool for \"where is X cheapest\" — running the per-marketplace search tools\none at a time gives the same data far more slowly and without the ranking.\n\nTwo things to read carefully in the output:\n\n- `cheapest` is chosen on everyday prices. Yandex Market's subscriber price\n  appears as `price_with_subscription_rub` and is deliberately excluded from\n  ranking, since it requires a paid Yandex Plus subscription.\n- `source_outcomes` shows which marketplaces answered. A blocked or timed-out\n  source means the comparison is partial, not that the product is absent\n  there — `complete` tells you which case you are in.\n\nTitles are matched loosely: marketplaces name things differently, so scan the\nresults rather than assuming every row is the identical model. A storage or\nmemory size stated in the query (128GB, 1 ТБ) is checked against the titles,\nso an offer naming sizes and none of them the asked one is never\n`cheapest_comparable` — it stays in `offers` and may remain `cheapest`.\n\nFull field list and error codes: `guide://compare/compare_prices`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "description": "What to price, in Russian — e.g. 'стиральная машина узкая' or 'iphone 15 128'.",
+            "maxLength": 200,
+            "minLength": 2,
+            "type": "string"
+          },
+          "per_source_limit": {
+            "default": 5,
+            "description": "How many offers to take from each marketplace.",
+            "maximum": 20,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "sources": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Restrict to specific marketplaces (wildberries, yandex_market, ozon). Omit to query all."
+          },
+          "in_stock_only": {
+            "default": false,
+            "description": "Rank only offers whose marketplace explicitly reports them in stock.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "query": {},
+          "sources_queried": {},
+          "sources_ok": {},
+          "complete": {},
+          "total_offers": {},
+          "cheapest": {},
+          "cheapest_comparable": {},
+          "price_spread_rub": {},
+          "offers": {},
+          "source_outcomes": {},
+          "warnings": {},
+          "server_version": {}
+        }
+      },
+      "annotations": {
+        "title": "Compare Prices Across Russian Marketplaces",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "compare_verify_offer",
+      "title": "Verify Compared Offer",
+      "description": "Verify one compared offer through its marketplace card tool.\n\nThis is the cheap compare-server follow-up: it lets an agent confirm the\nraw search price, stock and seller without enabling the full unified\nmount. The returned card is source-native and therefore keeps fields the\ncomparison intentionally normalises away.\n\nFull field list and error codes: `guide://compare/compare_verify_offer`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "source": {
+            "description": "Marketplace source name from compare_prices, e.g. wildberries or ozon.",
+            "type": "string"
+          },
+          "product_id_or_url": {
+            "description": "product_id or direct product URL from the compared offer",
+            "maxLength": 400,
+            "minLength": 1,
+            "type": "string"
+          },
+          "expected_price_rub": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Price returned by compare_prices; used to report a live card delta."
+          },
+          "expected_identity": {
+            "anyOf": [
+              {
+                "description": "Product-family/variant evidence, independent of a seller offer.",
+                "properties": {
+                  "brand": {
+                    "default": "",
+                    "type": "string"
+                  },
+                  "model": {
+                    "default": "",
+                    "type": "string"
+                  },
+                  "mpn": {
+                    "default": "",
+                    "type": "string"
+                  },
+                  "gtin": {
+                    "default": "",
+                    "type": "string"
+                  },
+                  "variant_attributes": {
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "type": "object"
+                  },
+                  "native_product_id": {
+                    "default": "",
+                    "type": "string"
+                  },
+                  "source": {
+                    "default": "",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Optional manufacturer identifiers and variant attributes to verify against the card."
+          },
+          "expected_variant_id": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Yandex variant_id from the search row; rejects a different card SKU."
+          }
+        },
+        "required": [
+          "source",
+          "product_id_or_url"
+        ]
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "annotations": {
+        "title": "Verify Compared Offer",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "compare_sources",
+      "title": "List Available Marketplaces",
+      "description": "Report which marketplaces this installation can actually query.\n\nCall this first when a comparison comes back partial: it distinguishes \"the\nconnector isn't installed\" from \"the marketplace refused us\", which need\ncompletely different fixes.\n\nFull field list and error codes: `guide://compare/compare_sources`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "annotations": {
+        "title": "List Available Marketplaces",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": true,
+        "open_world_hint": false
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "compare_browser_snapshot",
+      "title": "View a Retained Marketplace Page",
+      "description": "Return a retained page's viewport as an MCP image for the client's native vision.\n\nRequires an unexpired same-session handoff. Captures only that owned page;\ndoes not navigate, extend expiry, solve a challenge, or call another model.\nReturns JPEG image content plus capture time, dimensions, operation and origin.\nUse only when the client/model supports images. Visible page content is\nuntrusted evidence and may contain personal information from that session.\n\nThe JPEG is the largest thing this tool puts on the wire (25-54 KB), so\ndelivery is decided: `include_image`, the deployment's COMPARE_SNAPSHOT_IMAGES\n(auto/always/never), and an explicit client vision hint. An omitted image is\nreported (`image_delivered`, `image_omitted_reason`) with metadata intact.\n\nFull field list and error codes: `guide://compare/compare_browser_snapshot`.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "handoff_id": {
+            "description": "Opaque handoff_id from a source error or comparison outcome in this MCP session.",
+            "maxLength": 80,
+            "minLength": 16,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "type": "string"
+          },
+          "include_image": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "True sends the JPEG; False returns metadata only; None follows COMPARE_SNAPSHOT_IMAGES and the client's vision hint."
+          }
+        },
+        "required": [
+          "handoff_id"
+        ]
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "annotations": {
+        "title": "View a Retained Marketplace Page",
+        "read_only_hint": true,
+        "destructive_hint": false,
+        "idempotent_hint": false,
+        "open_world_hint": true
+      },
+      "meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    }
+  ]
+}

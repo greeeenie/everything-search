@@ -1,0 +1,13 @@
+[
+  {"tool":"ozon_search","arguments":{"query":"Wanbo Vali 1 Pro","page":1}},
+  {"tool":"aliexpress_search","arguments":{"query":"Wanbo Vali 1 Pro"}},
+  {"tool":"wb_search","arguments":{"query":"Wanbo Vali 1 Pro","page":1}},
+  {"tool":"yandex_search","arguments":{"query":"Wanbo Vali 1 Pro","limit":5}},
+  {"tool":"avito_search","arguments":{"query":"Wanbo Vali 1 Pro","include_inactive":false}},
+  {"tool":"dns_search","arguments":{"query":"проектор Wanbo"}},
+  {"tool":"citilink_search","arguments":{"query":"проектор"}},
+  {"tool":"lamoda_search","arguments":{"query":"кроссовки nike"}},
+  {"tool":"megamarket_search","arguments":{"query":"Wanbo Vali 1 Pro"}},
+  {"tool":"detmir_categories","arguments":{}},
+  {"tool":"compare_prices","arguments":{"query":"Wanbo Vali 1 Pro","sources":["ozon","aliexpress","wildberries","yandex_market"],"per_source_limit":5,"in_stock_only":true}}
+]

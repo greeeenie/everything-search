@@ -1,0 +1,6 @@
+[
+  {"tool":"ozon_card","arguments":{"sku_or_path":"/product/6352256373/"}},
+  {"tool":"ozon_card","arguments":{"sku_or_path":"/product/2229449678/"}},
+  {"tool":"aliexpress_card","arguments":{"item_id_or_url":"https://aliexpress.ru/item/1005011829396704.html?sku_id=12000058168267936"}},
+  {"tool":"aliexpress_card","arguments":{"item_id_or_url":"https://aliexpress.ru/item/1005013144767764.html?sku_id=12000060407446635"}}
+]

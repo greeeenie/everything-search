@@ -1,0 +1,14 @@
+[Unit]
+Description=Direct Russian egress for the marketplace trial
+After=network-online.target sing-box.service
+Before=marketplace-trial-browser.service marketplace-trial.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/python3 /usr/local/libexec/marketplace-trial-egress.py start
+ExecStop=/usr/bin/python3 /usr/local/libexec/marketplace-trial-egress.py stop
+
+[Install]
+WantedBy=multi-user.target

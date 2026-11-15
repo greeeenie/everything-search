@@ -1,0 +1,27 @@
+[Unit]
+Description=Vanilla ru-marketplace-mcp trial
+Requires=marketplace-trial-egress.service marketplace-trial-browser.service
+After=network-online.target marketplace-trial-egress.service marketplace-trial-browser.service
+
+[Service]
+User=marketplace-trial
+Group=marketplace-trial
+WorkingDirectory=/opt/ru-marketplace-mcp
+Environment=HOME=/var/lib/marketplace-trial
+EnvironmentFile=/etc/marketplace-trial/server.env
+ExecStart=/opt/ru-marketplace-mcp/.venv/bin/marketplace-mcp
+ExecStartPost=/usr/bin/python3 /usr/local/libexec/marketplace-trial-ready.py
+Restart=always
+RestartSec=5
+StateDirectory=marketplace-trial
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+MemoryMax=768M
+TasksMax=128
+
+[Install]
+WantedBy=multi-user.target

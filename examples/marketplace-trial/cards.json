@@ -1,0 +1,116 @@
+{
+  "checked_at": "2026-11-15T21:29:58.216257+00:00",
+  "checks": [
+    {
+      "tool": "ozon_card",
+      "arguments": {
+        "sku_or_path": "/product/6352256373/"
+      },
+      "is_error": false,
+      "result": {
+        "status": "success",
+        "price": 56522.0,
+        "card_price": 50870.0,
+        "price_original": null,
+        "is_available": true,
+        "rating_score": null,
+        "rating_count": null,
+        "title": "Проектор Wanbo Projector Vali 1 Pro синий",
+        "seller": {
+          "name": "СпортМаркет Мск",
+          "link": "https://www.ozon.ru/seller/sportmarket-msk/"
+        },
+        "url": "https://www.ozon.ru/product/6352256373/",
+        "tier_used": "cdp",
+        "_meta": {
+          "source": "ozon_card",
+          "healthy": true,
+          "warnings": []
+        }
+      },
+      "elapsed": 29.04
+    },
+    {
+      "tool": "ozon_card",
+      "arguments": {
+        "sku_or_path": "/product/2229449678/"
+      },
+      "is_error": false,
+      "result": {
+        "status": "success",
+        "price": 28265.0,
+        "card_price": 25438.0,
+        "price_original": 59990.0,
+        "is_available": true,
+        "rating_score": 4.8,
+        "rating_count": 2341,
+        "title": "Проектор для фильмов портативный Wanbo Vali 1, Android 11, голосовой помощник, 1Гб+8Гб, 900 ANSI люмен (WPC14)",
+        "seller": {
+          "name": "Электро Бэби",
+          "link": "https://www.ozon.ru/seller/elektro-bebi/"
+        },
+        "url": "https://www.ozon.ru/product/2229449678/",
+        "tier_used": "cdp",
+        "_meta": {
+          "source": "ozon_card",
+          "healthy": true,
+          "warnings": []
+        }
+      },
+      "elapsed": 16.79
+    },
+    {
+      "tool": "aliexpress_card",
+      "arguments": {
+        "item_id_or_url": "https://aliexpress.ru/item/1005011829396704.html?sku_id=12000058168267936"
+      },
+      "is_error": false,
+      "result": {
+        "status": "success",
+        "item_id": "1005011829396704",
+        "title": "Проектор WANBO Vali 1 Pro Google TV 14 900 ANSI 1080P",
+        "price_rub": null,
+        "old_price_rub": null,
+        "rating": 5.0,
+        "orders_count": 132,
+        "url": "https://aliexpress.ru/item/1005011829396704.html",
+        "tier_used": "cdp",
+        "_meta": {
+          "source": "aliexpress_card",
+          "healthy": false,
+          "warnings": [
+            "price_missing: the price module did not render — treat availability of this field as unknown"
+          ]
+        }
+      },
+      "elapsed": 31.52
+    },
+    {
+      "tool": "aliexpress_card",
+      "arguments": {
+        "item_id_or_url": "https://aliexpress.ru/item/1005013144767764.html?sku_id=12000060407446635"
+      },
+      "is_error": false,
+      "result": {
+        "status": "success",
+        "item_id": "1005013144767764",
+        "title": "Wanbo Vali 1 Pro Проектор 1080P",
+        "price_rub": null,
+        "old_price_rub": null,
+        "rating": null,
+        "orders_count": null,
+        "url": "https://aliexpress.ru/item/1005013144767764.html",
+        "tier_used": "cdp",
+        "_meta": {
+          "source": "aliexpress_card",
+          "healthy": false,
+          "warnings": [
+            "price_missing: the price module did not render — treat availability of this field as unknown",
+            "orders_count_missing: the SEO block it is read from was absent — drift-prone, not necessarily zero"
+          ]
+        }
+      },
+      "elapsed": 29.15
+    }
+  ]
+}
