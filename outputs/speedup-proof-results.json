@@ -1,0 +1,60 @@
+{
+  "verdict": "INCONCLUSIVE",
+  "reason": "Single live request per configuration with uncontrolled network latency and marketplace data.",
+  "checks": {
+    "cdp_budget_tests": 18,
+    "status": "passed"
+  },
+  "before": {
+    "checked_at": "2026-11-15T22:04:21.020277+00:00",
+    "arguments": {
+      "query": "Wanbo Vali 1 Pro",
+      "sources": [
+        "ozon",
+        "aliexpress",
+        "wildberries",
+        "yandex_market"
+      ],
+      "per_source_limit": 3,
+      "in_stock_only": true
+    },
+    "elapsed_seconds": 28.81,
+    "is_error": false,
+    "sources_ok": [
+      "ozon",
+      "aliexpress",
+      "wildberries",
+      "yandex_market"
+    ],
+    "complete": true,
+    "max_concurrent": 1,
+    "per_host": 1,
+    "peak_in_flight": 1
+  },
+  "after": {
+    "checked_at": "2026-11-15T22:05:25.258943+00:00",
+    "arguments": {
+      "query": "Wanbo Vali 1 Pro",
+      "sources": [
+        "ozon",
+        "aliexpress",
+        "wildberries",
+        "yandex_market"
+      ],
+      "per_source_limit": 3,
+      "in_stock_only": true
+    },
+    "elapsed_seconds": 28.72,
+    "is_error": false,
+    "sources_ok": [
+      "ozon",
+      "aliexpress",
+      "wildberries",
+      "yandex_market"
+    ],
+    "complete": true,
+    "max_concurrent": 2,
+    "per_host": 1,
+    "peak_in_flight": 2
+  }
+}

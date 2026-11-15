@@ -61,7 +61,7 @@ if not environment.exists():
         "MARKETPLACE_SOURCES": "wildberries,ozon,yandex_market,avito,aliexpress,dns,citilink,detsky_mir,lamoda,megamarket,compare",
         "CHROME_CDP_HOST": "127.0.0.1", "CHROME_CDP_PORT": "9223",
         "CHROME_BINARY": "/usr/bin/chromium", "CHROME_SCRAPING_PROFILE": "/var/lib/marketplace-trial/chrome",
-        "CHROME_HEADLESS": "0", "CHROME_CDP_MAX_NAVIGATIONS": "1",
+        "CHROME_HEADLESS": "0", "CHROME_CDP_MAX_NAVIGATIONS": "2",
         "CHROME_NAV_TIMEOUT_MS": "45000",
         "CHROME_CDP_PER_HOST_NAVIGATIONS": "1", "OZON_CHROME_COMPAT": "windows",
         "COMPARE_SOURCE_TIMEOUT": "120", "OTEL_SDK_DISABLED": "true",
