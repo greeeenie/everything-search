@@ -27,6 +27,9 @@ py-modules = ["server", "community_sources"]
 [tool.setuptools.packages.find]
 include = ["research_v2*"]
 
+[tool.setuptools.data-files]
+"share/everything-search" = ["docs/SKILL.md", "docs/CONNECTING.md"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"

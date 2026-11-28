@@ -54,6 +54,12 @@ class Offer(BaseModel):
     marketplace: str
     seller: str | None = None
     price: Decimal | None = None
+    conditional_price: Decimal | None = None
+    original_price: Decimal | None = None
+    rating: float | None = None
+    reviews_count: int | None = None
+    image_url: str | None = None
+    sku: str | None = None
     currency: str | None = None
     price_conditions: list[str] = Field(default_factory=list)
     price_scope: Literal["public", "conditional", "unknown"] = "unknown"

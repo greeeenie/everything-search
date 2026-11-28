@@ -4,20 +4,35 @@ from decimal import Decimal
 import json
 
 from .config import Settings
+from .connectors import NativeMarketplaceHub
 from .discovery import Discovery, canonical_url
 from .fetching import Fetcher
 from .models import Page, SearchHit, now
 from .network import EgressRouter
-from .shopping import ADAPTERS, adapter_for, available_priced_offer, model_matches, product_matches, review_excerpts
+from .shopping import (
+    ADAPTERS, MARKETPLACE_DOMAINS, adapter_for, available_priced_offer, dedupe_reviews, merge_product,
+    model_matches, normalize_conditional_price, offer_key, product_matches, review_excerpts,
+)
 from .store import Store
 
 
+MARKETPLACE_ALIASES = {"wb": "wildberries", "yandex": "yandex_market", "detmir": "detsky_mir"}
+FALLBACK_SOURCES = {"avito", "ozon", "yandex_market"}
+FALLBACK_STATUSES = {"blocked", "timeout", "error", "unhealthy"}
+
+
 class Engine:
-    def __init__(self, settings=None, store=None, fetcher=None, discovery=None):
+    def __init__(
+        self, settings=None, store=None, fetcher=None, discovery=None,
+        marketplace_hub: NativeMarketplaceHub | None = None,
+    ):
         self.settings = settings or Settings.load()
         self.store = store or Store(self.settings.database)
         self.fetcher = fetcher or Fetcher(self.settings, self.store)
         self.discovery = discovery or Discovery(self.settings, self.store)
+        self.marketplace_hub = marketplace_hub
+        if marketplace_hub is None and self.settings.native_connectors and fetcher is None and discovery is None:
+            self.marketplace_hub = NativeMarketplaceHub(self.settings, self.store)
 
     async def read_page(self, url, region=None, dynamic=False, refresh=False):
         return (await self.fetcher.read(url, region, dynamic=dynamic, refresh=refresh)).model_dump(
@@ -88,11 +103,18 @@ class Engine:
         await asyncio.gather(*(read(h) for h in hits))
         return result
 
-    def shop_domains(self, marketplaces):
-        names = marketplaces or list(self.settings.marketplaces)
-        if len(names) > 8:
-            raise ValueError("At most eight marketplaces")
-        return [self.settings.marketplaces.get(name, name) for name in names]
+    def _shop_targets(self, marketplaces):
+        names = marketplaces or self.settings.enabled_marketplaces or list(self.settings.marketplaces)
+        if not names and self.marketplace_hub is not None:
+            names = sorted(self.marketplace_hub.known_marketplaces)
+        if len(names) > 12:
+            raise ValueError("At most twelve marketplaces")
+        targets = []
+        for name in names:
+            source = MARKETPLACE_ALIASES.get(name, name)
+            domain = self.settings.marketplaces.get(name, MARKETPLACE_DOMAINS.get(source, name))
+            targets.append((source, domain))
+        return targets
 
     async def search_products(
         self,
@@ -118,13 +140,47 @@ class Engine:
         search_query = model or query
         if specifications:
             search_query += " " + " ".join(f"{k} {v}" for k, v in specifications.items())
-        hits, errors = await self.discovery.search(
-            search_query,
-            self.shop_domains(marketplaces),
-            max_results,
-            exact=bool(model and not specifications),
-            region=region,
-        )
+        if not search_query.strip() or len(search_query.strip()) > 500 or not 1 <= max_results <= 20:
+            raise ValueError("query must contain 1..500 characters; limit 1..20")
+        targets = self._shop_targets(marketplaces)
+        domains = [domain for _, domain in targets]
+        hub_products, hub_offers, outcomes, errors = [], [], [], []
+        fallback_sources = set()
+        if self.marketplace_hub is not None:
+            requested_domains = {}
+            local_domains = set()
+            known = self.marketplace_hub.known_marketplaces
+            for source, domain in targets:
+                if source in known:
+                    requested_domains.setdefault(source, []).append(domain)
+                elif connector := self.marketplace_hub.connector_for_url("https://" + domain):
+                    requested_domains.setdefault(connector.name, []).append(domain)
+                else:
+                    local_domains.add(domain)
+            if requested_domains:
+                hub_products, hub_offers, outcomes, errors = await self.marketplace_hub.compare(
+                    search_query.strip(), list(requested_domains), model=model, limit=max_results, city=city,
+                )
+            for outcome in outcomes:
+                source = outcome["source"]
+                code = outcome.get("error_code")
+                # A hub deadline can interrupt the built-in Camoufox step before it reports its outcome.
+                if (
+                    source in FALLBACK_SOURCES and outcome["status"] in FALLBACK_STATUSES
+                    and not outcome.get("fallback_used") and code != "circuit_open"
+                    and not (code == "connector_timeout" and source in {"avito", "ozon"})
+                ):
+                    fallback_sources.add(source)
+                    local_domains.update(requested_domains[source])
+                    outcome["fallback_used"] = "research_v2"
+            domains = [domain for domain in domains if domain in local_domains]
+
+        hits = []
+        if domains or self.marketplace_hub is None:
+            hits, discovery_errors = await self.discovery.search(
+                search_query, domains, max_results, exact=bool(model and not specifications), region=region,
+            )
+            errors.extend(discovery_errors)
         if model:
             from urllib.parse import unquote, urlsplit
 
@@ -135,7 +191,7 @@ class Engine:
                 or product_matches(model, unquote(urlsplit(hit.url).path).replace("-", " ").replace("_", " "))
             ]
         native_hits = []
-        for domain in self.shop_domains(marketplaces):
+        for domain in domains:
             adapter = adapter_for("https://" + domain)
             native_url = adapter.search_url(search_query)
             if adapter.name in self.settings.native_search_marketplaces and native_url:
@@ -166,6 +222,9 @@ class Engine:
                 "Missing structured product/offer data is reported, never filled from index prices.",
             ],
         }
+        if outcomes:
+            output["source_outcomes"] = outcomes
+            output["limitations"][1] = "Prices and stock describe native marketplace or public page data at checked_at."
         products, offers = {}, {}
         condition_details_checked = 0
         filter_currency = (
@@ -185,41 +244,30 @@ class Engine:
                     error="not_product_offer_url",
                 )
                 return hit, page, ([], [])
-            page = await self.fetcher.read(hit.url, region, dynamic=dynamic)
+            page = await self.fetcher.read(hit.url, region, dynamic=dynamic or adapter.name in fallback_sources)
             return hit, page, adapter_for(page.final_url or hit.url).parse(page, model)
 
         rows = await asyncio.gather(*(read(h) for h in hits), return_exceptions=True)
-        for hit, row in zip(hits, rows):
+        hub_row = (None, None, (hub_products, hub_offers))
+        for hit, row in [(None, hub_row), *zip(hits, rows)]:
             if isinstance(row, Exception):
                 output["errors"].append({"url": hit.url, "error": "parsing_error"})
                 continue
             _, page, (parsed_products, parsed_offers) = row
-            candidate = hit.model_dump(mode="json")
-            candidate.update(
-                fetch_status=page.status, fetch_error=page.error, fetch_checked_at=page.checked_at
-            )
-            if hit.source == "marketplace_search":
-                candidate.update(status=page.status, error=page.error)
-            if not parsed_products:
-                candidate["extraction_error"] = (
-                    "model_mismatch_or_no_product_data" if page.status == "verified" else page.error
+            if hit is not None:
+                candidate = hit.model_dump(mode="json")
+                candidate.update(
+                    fetch_status=page.status, fetch_error=page.error, fetch_checked_at=page.checked_at
                 )
-            output["candidates"].append(candidate)
+                if hit.source == "marketplace_search":
+                    candidate.update(status=page.status, error=page.error)
+                if not parsed_products:
+                    candidate["extraction_error"] = (
+                        "model_mismatch_or_no_product_data" if page.status == "verified" else page.error
+                    )
+                output["candidates"].append(candidate)
             for product in parsed_products:
-                if product.id in products:
-                    products[product.id].sources.extend(product.sources)
-                    # Specifications remain source-scoped when sources disagree.
-                    for key, value in product.specifications.items():
-                        current = products[product.id]
-                        if key in current.specification_conflicts:
-                            if value not in current.specification_conflicts[key]:
-                                current.specification_conflicts[key].append(value)
-                        elif key not in current.specifications:
-                            current.specifications[key] = value
-                        elif current.specifications[key] != value:
-                            current.specification_conflicts[key] = [current.specifications.pop(key), value]
-                else:
-                    products[product.id] = product
+                merge_product(products, product)
             for offer in parsed_offers:
                 if (
                     condition
@@ -248,6 +296,7 @@ class Engine:
                         offer = matching
                     elif detail.status != "verified":
                         output["errors"].append({"url": offer.url, "error": detail.error})
+                offer = normalize_conditional_price(offer)
                 if not available_priced_offer(offer):
                     continue
                 offer.delivery_city = city
@@ -265,15 +314,7 @@ class Engine:
                     for key, value in specifications.items()
                 ):
                     continue
-                key = (
-                    canonical_url(offer.url),
-                    offer.seller,
-                    offer.currency,
-                    offer.price,
-                    offer.condition,
-                    json.dumps(offer.variants, sort_keys=True),
-                )
-                offers[key] = offer
+                offers[offer_key(offer)] = offer
                 evidence = offer.evidence.model_dump(mode="json")
                 evidence["normalized_offer"] = offer.model_dump(mode="json")
                 self.store.record(evidence)
@@ -349,6 +390,14 @@ class Engine:
                 and state != "unknown"
             ]
             eligible.sort(key=lambda o: Decimal(o["total_price"]))
+            public = self._public_prices(offers)
+            conditional = self._conditional_prices(offers)
+            best_price = public[0] if public else None
+            best_conditional = conditional[0] if conditional else None
+            if best_price and best_conditional and Decimal(best_conditional["effective_price"]) >= Decimal(
+                best_price["price"]
+            ):
+                best_conditional = None
             comparisons.append(
                 {
                     "product_id": product_id,
@@ -358,6 +407,8 @@ class Engine:
                     "variants": json.loads(variant),
                     "offers": offers,
                     "best_offer": eligible[0] if eligible else None,
+                    "best_price_offer": best_price,
+                    "best_conditional_offer": best_conditional,
                     "ranking": "public in-stock total price including confirmed city delivery",
                     "limitation": None
                     if eligible
@@ -365,14 +416,92 @@ class Engine:
                 }
             )
         result["comparisons"] = comparisons
+        verified = [
+            offer for offer in result["offers"]
+            if offer["evidence"]["status"] == "verified" and offer["availability"] == "in_stock"
+        ]
+        public = self._public_prices(verified)
+        new = [
+            offer for offer in verified
+            if offer["condition"] == "new" or (
+                offer["condition"] == "unknown" and offer["marketplace"] in MARKETPLACE_DOMAINS.keys() - {"avito"}
+            )
+        ]
+        conditional = self._conditional_prices(offer for offer in new if offer["condition"] == "new")
+        fields = (
+            "marketplace", "title", "price", "conditional_price", "currency", "condition", "price_scope",
+            "price_conditions", "seller", "rating", "reviews_count", "url",
+        )
+        best_used = min(
+            (offer for offer in verified if offer["condition"] == "used" and offer["price"] is not None),
+            key=lambda offer: Decimal(offer["price"]),
+            default=None,
+        )
+        result["recommendations"] = {
+            "best_new_public": next(iter(self._public_prices(new)), None),
+            "best_new_conditional": conditional[0] if conditional else None,
+            "best_used": best_used,
+            "cheapest_overall_public": public[0] if public else None,
+            "ranked_top_5": [{field: offer.get(field) for field in fields} for offer in public[:5]],
+        }
+        if len({offer["currency"] for offer in [*public, *conditional]}) > 1:
+            result["limitations"].append(
+                "Top-level recommendations sort the reported amounts without currency conversion. "
+                "Use currency-specific comparison groups when comparing different currencies."
+            )
         return result
+
+    @staticmethod
+    def _public_prices(offers):
+        return sorted(
+            (offer for offer in offers if offer["availability"] == "in_stock"
+             and offer["price_scope"] == "public" and offer["price"] is not None),
+            key=lambda offer: Decimal(offer["price"]),
+        )
+
+    @staticmethod
+    def _conditional_prices(offers):
+        priced = []
+        for offer in offers:
+            if offer["availability"] != "in_stock":
+                continue
+            amount = offer.get("conditional_price")
+            if amount is None and offer["price_scope"] == "conditional":
+                amount = offer["price"]
+            if amount is not None:
+                priced.append({**offer, "effective_price": amount})
+        return sorted(priced, key=lambda offer: Decimal(offer["effective_price"]))
+
+    @staticmethod
+    def _card_matches(model, product):
+        return product_matches(model, product.name) or bool(
+            product.brand and product_matches(model, product.brand + " " + product.name)
+        )
 
     async def get_product_details(self, url=None, model=None, region=None):
         if not url and not model:
             raise ValueError("Provide url or model")
         if url:
-            page = await self.fetcher.read(url, region, dynamic=True)
-            products, offers = adapter_for(page.final_url or url).parse(page, model)
+            products, offers, reviews, error = [], [], [], None
+            if self.marketplace_hub is not None and self.marketplace_hub.connector_for_url(url):
+                products, offers, reviews, error = await self.marketplace_hub.get_card(url, model=model)
+                if model:
+                    products = [p for p in products if self._card_matches(model, p)]
+                    ids = {p.id for p in products}
+                    offers = [offer for offer in offers if offer.product_id in ids]
+            if products or offers:
+                evidence = next((source for product in products for source in product.sources), None)
+                if evidence is None and offers:
+                    evidence = offers[0].evidence
+                page = Page(**evidence.model_dump(), extractor="marketplace_hub") if evidence else Page(
+                    url=url, status="unavailable", source="marketplace_hub", region="RU",
+                    extractor="marketplace_hub", error="marketplace_evidence_unavailable",
+                )
+            else:
+                reviews = []
+                page = await self.fetcher.read(url, region, dynamic=True)
+                products, offers = adapter_for(page.final_url or url).parse(page, model)
+            offers = [normalize_conditional_price(offer) for offer in offers]
             offers = [offer for offer in offers if available_priced_offer(offer)]
             for offer in offers:
                 self.store.record(
@@ -389,32 +518,43 @@ class Engine:
                             "normalized_product": product.model_dump(mode="json"),
                         }
                     )
-            return {
+            result = {
                 "checked_at": now(),
                 "products": [p.model_dump(mode="json") for p in products],
                 "offers": [o.model_dump(mode="json") for o in offers],
                 "page": page.model_dump(mode="json"),
                 "extraction_error": None if products else "no_matching_structured_product",
             }
+            if reviews:
+                result["reviews"] = reviews
+            if error is not None:
+                result["marketplace_hub_error"] = error
+            return result
         return await self.search_products(model, model=model, region=region)
 
     async def get_product_reviews(self, model, domains=None, max_results=8, region=None):
-        hits, errors = await self.discovery.search(
-            model + " отзывы опыт review", domains or self.settings.review_domains, max_results, region=region
+        async def web_reviews():
+            hits, errors = await self.discovery.search(
+                model + " отзывы опыт review", domains or self.settings.review_domains, max_results, region=region
+            )
+            pages = await asyncio.gather(*(self.fetcher.read(h.url, region) for h in hits))
+            return hits, errors, pages
+
+        marketplace_reviews, marketplace_errors = [], []
+        if self.marketplace_hub is not None:
+            (hits, errors, pages), (marketplace_reviews, marketplace_errors) = await asyncio.gather(
+                web_reviews(), self.marketplace_hub.get_reviews(model, limit=max_results),
+            )
+        else:
+            hits, errors, pages = await web_reviews()
+        reviews = dedupe_reviews(
+            marketplace_reviews + [review for page in pages for review in review_excerpts(page, model)]
         )
-        pages = await asyncio.gather(*(self.fetcher.read(h.url, region) for h in hits))
-        reviews, seen = [], set()
-        for page in pages:
-            for review in review_excerpts(page, model):
-                key = (review["url"], review["text"])
-                if key not in seen:
-                    seen.add(key)
-                    reviews.append(review)
         return {
             "model": model,
             "checked_at": now(),
             "reviews": reviews,
-            "errors": errors,
+            "errors": errors + marketplace_errors,
             "sources": [
                 {**h.model_dump(mode="json"), "fetch_status": p.status, "fetch_error": p.error}
                 for h, p in zip(hits, pages)
@@ -426,7 +566,7 @@ class Engine:
         }
 
     async def research(self, query, mode="quick", domains=None, model=None, city=None):
-        budget = 30 if mode == "quick" else 180
+        budget = 45 if (mode == "quick" and self.marketplace_hub is not None) else (30 if mode == "quick" else 180)
         output = {
             "query": query,
             "mode": mode,
@@ -448,8 +588,15 @@ class Engine:
             )
         }
         if model:
+            shopping_markets = domains
+            if shopping_markets is None and mode == "quick" and self.marketplace_hub is not None:
+                quick_core = ["yandex_market", "wildberries", "aliexpress", "avito", "ozon"]
+                enabled = set(self.settings.enabled_marketplaces or self.settings.marketplaces) or (
+                    self.marketplace_hub.known_marketplaces
+                )
+                shopping_markets = [name for name in quick_core if name in enabled] or None
             jobs["shopping"] = self.compare_prices(
-                model, marketplaces=domains, city=city, max_results=6 if mode == "quick" else 12
+                model, marketplaces=shopping_markets, city=city, max_results=6 if mode == "quick" else 12
             )
             if mode == "deep":
                 jobs["reviews"] = self.get_product_reviews(model, domains=domains)
@@ -475,12 +622,18 @@ class Engine:
         return output
 
     async def diagnose_egress(self):
-        rows = await asyncio.gather(*(self.fetcher.http.diagnose(region) for region in ("RU", "EU")))
-        return {
+        jobs = [self.fetcher.http.diagnose(region) for region in ("RU", "EU")]
+        if self.marketplace_hub is not None:
+            jobs.append(self.marketplace_hub.health())
+        rows = await asyncio.gather(*jobs)
+        result = {
             "checked_at": now(),
-            "egress": rows,
+            "egress": rows[:2],
             "distinct_ips": bool(rows[0].get("ip") and rows[1].get("ip") and rows[0]["ip"] != rows[1]["ip"]),
         }
+        if self.marketplace_hub is not None:
+            result["marketplace_hub"] = rows[2]
+        return result
 
 
 _engine = None

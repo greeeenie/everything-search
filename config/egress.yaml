@@ -1,9 +1,17 @@
 default_region: EU
+native_connectors: true
 domains:
   ru: RU
   ozon.ru: RU
   avito.ru: RU
   market.yandex.ru: RU
+  wildberries.ru: RU
+  aliexpress.ru: RU
+  dns-shop.ru: RU
+  citilink.ru: RU
+  megamarket.ru: RU
+  lamoda.ru: RU
+  detmir.ru: RU
   4pda.to: RU
   forum.ixbt.com: RU
   reddit.com: EU
@@ -17,8 +25,15 @@ marketplaces:
   ozon: ozon.ru
   avito: avito.ru
   yandex_market: market.yandex.ru
+  wildberries: wildberries.ru
+  aliexpress: aliexpress.ru
+  dns: dns-shop.ru
+  citilink: citilink.ru
+  megamarket: megamarket.ru
+  lamoda: lamoda.ru
+  detsky_mir: detmir.ru
 review_domains: [4pda.to, forum.ixbt.com, reddit.com, youtube.com]
-enabled_marketplaces: [ozon, avito, yandex_market]
+enabled_marketplaces: [ozon, avito, yandex_market, wildberries, aliexpress, dns, citilink, megamarket, lamoda, detsky_mir]
 native_search_marketplaces: [avito, yandex_market]
 # Anonymous browser checks are explicitly authorized. Content still follows robots.
 # Protocol paths are used only to complete the site's own computational challenge.

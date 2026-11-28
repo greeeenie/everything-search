@@ -11,6 +11,82 @@ from .fetching import blocked_reason, extract
 from .network import AccessError, host_matches, validate_url
 from .shopping import has_type, objects
 
+MAX_CAPTURE_JSON_BYTES = 512 * 1024
+MAX_CAPTURE_JSON_RESPONSES = 12
+# JSON escaping can expand control characters or UTF-16 surrogate pairs.
+CAPTURE_JSON_OUTPUT_LIMIT = MAX_CAPTURE_JSON_BYTES * MAX_CAPTURE_JSON_RESPONSES * 3 + 65536
+
+
+def capture_patterns(value: object) -> list[str] | None:
+    if value is None:
+        return None
+    if not isinstance(value, list) or len(value) > 8 or any(
+        not isinstance(pattern, str) or not pattern for pattern in value
+    ):
+        raise AccessError("invalid_capture_json_patterns")
+    return value
+
+
+class JsonResponseCapture:
+    """Collect a bounded set of matching JSON responses from one page."""
+
+    def __init__(self, patterns: list[str] | None):
+        self.patterns = patterns or ()
+        self.results = []
+        self.tasks = set()
+        self.closed = False
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        await self.close()
+
+    def on_response(self, response):
+        if (
+            self.closed
+            or len(self.results) + len(self.tasks) >= MAX_CAPTURE_JSON_RESPONSES
+            or not any(pattern in response.url for pattern in self.patterns)
+        ):
+            return
+        task = asyncio.create_task(self.collect(response))
+        self.tasks.add(task)
+        task.add_done_callback(self.tasks.discard)
+
+    async def collect(self, response):
+        from playwright.async_api import Error as BrowserError
+
+        try:
+            validate_url(response.url)
+            if len(response.url) > 4096:
+                return
+            content_type = response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+            if content_type not in {"", "application/json", "text/plain"} and not content_type.endswith("+json"):
+                return
+            size = int(response.headers.get("content-length", 0))
+            if size > MAX_CAPTURE_JSON_BYTES:
+                return
+            body = await response.body()
+            if len(body) > MAX_CAPTURE_JSON_BYTES:
+                return
+            data = json.loads(body)
+            # Starlette emits strict JSON. Validate nested values before returning them.
+            json.dumps(data, ensure_ascii=False, allow_nan=False).encode()
+            self.results.append({"url": response.url, "status": response.status, "data": data})
+        except (AccessError, ValueError, TypeError, RecursionError, BrowserError):
+            pass
+
+    async def settle(self):
+        if self.tasks:
+            await asyncio.wait(self.tasks, timeout=1)
+
+    async def close(self):
+        self.closed = True
+        tasks = list(self.tasks)
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+
 
 def challenge_policy(settings, url):
     _, host = validate_url(url)
@@ -32,13 +108,26 @@ def capture_timeout(settings, url):
     return min(120, max(5, float(timeout)))
 
 
-async def capture_with_camoufox(settings, url, region):
+async def capture_with_camoufox(
+    settings, url, region, *, allow_search: bool = False, capture_json_patterns: list[str] | None = None,
+):
     """The optional Firefox environment has its own compatible Playwright version."""
     configured = challenge_policy(settings, url)
     if not configured or configured[1].get("backend") != "camoufox":
         raise AccessError("source_policy_denied")
     if not settings.camoufox_python or not Path(settings.camoufox_python).is_file():
         raise AccessError("camoufox_not_installed")
+    if not isinstance(allow_search, bool):
+        raise AccessError("invalid_allow_search")
+    patterns = capture_patterns(capture_json_patterns)
+    options = {"url": url, "region": region}
+    if allow_search:
+        options["allow_search"] = True
+    if patterns is not None:
+        options["capture_json_patterns"] = patterns
+    payload = json.dumps(options, ensure_ascii=False).encode()
+    if len(payload) > 16384:
+        raise AccessError("request_too_large")
     environment = {
         key: value
         for key, value in os.environ.items()
@@ -49,6 +138,9 @@ async def capture_with_camoufox(settings, url, region):
         PYTHONUTF8="1",
         RESEARCH_EU_PROXY=settings.eu_proxy,
         RESEARCH_RU_PROXY=settings.ru_proxy,
+        RESEARCH_ALLOW_INTERNAL_HOSTS="1" if settings.allow_internal_hosts else "0",
+        RESEARCH_VERIFY_EGRESS="1" if settings.verify_egress else "0",
+        RESEARCH_EXPECTED_COUNTRIES=json.dumps(settings.expected_countries),
         RESEARCH_DATABASE=settings.database,
     )
     process = await asyncio.create_subprocess_exec(
@@ -62,13 +154,14 @@ async def capture_with_camoufox(settings, url, region):
         start_new_session=True,
     )
     try:
-        process.stdin.write(json.dumps({"url": url, "region": region}).encode())
+        process.stdin.write(payload)
         await process.stdin.drain()
         process.stdin.close()
         chunks, size = [], 0
+        limit = settings.max_bytes * 2 + 65536 + (CAPTURE_JSON_OUTPUT_LIMIT if patterns else 0)
         while chunk := await process.stdout.read(65536):
             size += len(chunk)
-            if size > settings.max_bytes * 2 + 65536:
+            if size > limit:
                 raise AccessError("worker_response_too_large")
             chunks.append(chunk)
         await process.wait()

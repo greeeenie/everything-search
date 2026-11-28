@@ -30,7 +30,8 @@ def register_tools(mcp):
     ) -> dict[str, Any]:
         """Find public product offers. Exact model prevents merging adjacent models.
 
-        Marketplaces are ozon, avito, yandex_market or explicit shop domains.
+        Choose wildberries, ozon, yandex_market, avito, aliexpress, dns, citilink,
+        megamarket, lamoda, detsky_mir or explicit shop domains.
         Offers require verified in-stock availability, a positive price and currency.
         Pass delivery city. Discovery candidates are diagnostic sources.
         """
@@ -60,7 +61,10 @@ def register_tools(mcp):
         """Compare exact-model offers by currency, condition and variants.
 
         Offers require verified in-stock availability, a positive price and currency.
-        Best offer requires public price, stock and confirmed city delivery cost.
+        best_offer ranks public totals with confirmed city delivery.
+        best_price_offer and best_conditional_offer compare listed prices.
+        recommendations includes the best new public, new conditional and used
+        offers, plus the five lowest public prices.
         """
         return await get_engine().compare_prices(model, marketplaces, city, condition, max_results, region)
 
@@ -81,7 +85,10 @@ def register_tools(mcp):
         max_results: Limit = 8,
         region: Region = None,
     ) -> dict[str, Any]:
-        """Find reviews and model-local discussion fragments with dates and source attribution."""
+        """Find buyer reviews from Wildberries, Ozon and Yandex Market and excerpts from forums and the web.
+
+        Results include source attribution for the exact model and dates where available.
+        """
         return await get_engine().get_product_reviews(model, domains, max_results, region)
 
     @mcp.tool(annotations=read_only)
@@ -99,5 +106,5 @@ def register_tools(mcp):
 
     @mcp.tool(annotations=read_only)
     async def diagnose_egress() -> dict[str, Any]:
-        """Check actual external IP and country of the RU and EU routes."""
+        """Check RU and EU egress and the native marketplace hub's CDP and circuit breaker health."""
         return await get_engine().diagnose_egress()

@@ -9,9 +9,16 @@ import json
 from pathlib import Path
 import sys
 import time
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import parse_qs, urlsplit, urlunsplit
 
-from .browser_capture import capture_timeout, challenge_policy, is_challenge_asset, is_challenge_protocol
+from .browser_capture import (
+    JsonResponseCapture,
+    capture_patterns,
+    capture_timeout,
+    challenge_policy,
+    is_challenge_asset,
+    is_challenge_protocol,
+)
 from .browser_network import BrowserNetwork
 from .config import Settings
 from .fetching import Fetcher, blocked_reason, extract
@@ -31,7 +38,19 @@ def canonical_browser_url(url, domain):
     return urlunsplit(("https", authority, parsed.path or "/", parsed.query, ""))
 
 
-async def capture(settings, url, region):
+def is_marketplace_search(url, domain):
+    parsed = urlsplit(url)
+    path, query = parsed.path.rstrip("/"), parse_qs(parsed.query)
+    if domain == "ozon.ru":
+        return path == "/search" and bool(query.get("text"))
+    if domain == "avito.ru":
+        return path == "/all" and bool(query.get("q"))
+    return False
+
+
+async def capture(
+    settings, url, region, *, allow_search: bool = False, capture_json_patterns: list[str] | None = None,
+):
     from camoufox import DefaultAddons
     from camoufox.async_api import AsyncCamoufox
     from playwright.async_api import Error as BrowserError
@@ -43,9 +62,26 @@ async def capture(settings, url, region):
     url = canonical_browser_url(url, configured[0])
     _, main_host = validate_url(url)
     policy = configured[1]
+    if not isinstance(allow_search, bool):
+        raise AccessError("invalid_allow_search")
+    search = allow_search and is_marketplace_search(url, configured[0])
+    patterns = capture_patterns(capture_json_patterns)
     selected = fetcher.http.router.choose(url, region)
     await fetcher.http.require_region(selected)
-    await fetcher.allowed(url, selected)
+
+    async def check_robots(target, *, main_navigation=False):
+        try:
+            await fetcher.allowed(target, selected)
+        except AccessError as error:
+            if not (
+                str(error) == "robots_denied"
+                and search
+                and main_navigation
+                and is_marketplace_search(target, configured[0])
+            ):
+                raise
+
+    await check_robots(url, main_navigation=True)
     directory = Path(settings.database).parent / "browser" / adapter_for(url).name / selected
     directory.mkdir(parents=True, exist_ok=True, mode=0o700)
     directory.chmod(0o700)
@@ -78,7 +114,7 @@ async def capture(settings, url, region):
                 "browser.startup.page": 0,
                 "browser.sessionstore.resume_from_crash": False,
             },
-        ) as context:
+        ) as context, JsonResponseCapture(patterns) as captured:
             await context.route_web_socket("**", lambda socket: socket.close())
             previous_pages = list(context.pages)
             page = await context.new_page()
@@ -101,7 +137,10 @@ async def capture(settings, url, region):
                         if host != main_host or navigations > settings.max_redirects + 1:
                             raise AccessError("redirect_limit")
                     if not (protocol or is_challenge_asset(request.url, policy)):
-                        await fetcher.allowed(request.url, selected)
+                        await check_robots(
+                            request.url,
+                            main_navigation=request.is_navigation_request() and request.frame == page.main_frame,
+                        )
                     await route.continue_()
                 except (AccessError, TimeoutError) as error:
                     if request.is_navigation_request():
@@ -124,6 +163,8 @@ async def capture(settings, url, region):
                         pass
 
             page.on("response", on_response)
+            if patterns:
+                page.on("response", captured.on_response)
 
             async def navigate():
                 nonlocal status
@@ -136,7 +177,8 @@ async def capture(settings, url, region):
             await navigate()
             clean_navigation = False
             deadline = asyncio.get_running_loop().time() + 40
-            reason = "browser_no_product_data"
+            no_data = "browser_no_search_data" if search else "browser_no_product_data"
+            reason = no_data
             while asyncio.get_running_loop().time() < deadline:
                 if proof_passed.is_set() and not clean_navigation:
                     clean_navigation = True
@@ -149,35 +191,57 @@ async def capture(settings, url, region):
                     await asyncio.sleep(0.5)
                     continue
                 try:
+                    final_url, page_status = page.url, status
                     html = await page.content()
                     if len(html.encode()) > settings.max_bytes:
                         raise AccessError("render_too_large")
-                    title, text, nodes = extract(html, page.url)
-                    reason = blocked_reason(status, title, text)
-                    product = any(has_type(node, "Product") and node.get("name") for node in objects(nodes))
+                    title, text, nodes = extract(html, final_url)
+                    reason = blocked_reason(page_status, title, text)
+                    if search:
+                        ready = is_marketplace_search(final_url, configured[0]) and (
+                            bool(captured.results) or (page_status == 200 and len(text) > 500)
+                        )
+                    else:
+                        ready = any(has_type(node, "Product") and node.get("name") for node in objects(nodes))
                 except BrowserError:
                     await asyncio.sleep(0.5)
                     continue
-                if not reason and product:
-                    await fetcher.allowed(page.url, selected)
-                    return {
+                if not reason and ready:
+                    await captured.settle()
+                    if final_url != page.url or status != page_status:
+                        continue
+                    _, final_host = validate_url(final_url)
+                    if final_host != main_host or not any(host_matches(final_host, d) for d in policy["domains"]):
+                        raise AccessError("source_policy_denied")
+                    await check_robots(final_url, main_navigation=True)
+                    result = {
                         "html": html,
-                        "final_url": page.url,
-                        "http_status": status,
+                        "final_url": final_url,
+                        "http_status": page_status,
                         "extractor": "camoufox+guarded-egress+automatic-check",
                     }
+                    if search or patterns is not None:
+                        result["captured_json"] = captured.results
+                    return result
                 if status in {401, 407, 429, 451}:
                     raise AccessError(reason or f"http_{status}")
                 await asyncio.sleep(0.5)
-            raise AccessError(reason or "browser_no_product_data")
+            raise AccessError(reason or no_data)
 
 
 async def main():
     try:
-        payload = json.loads(sys.stdin.buffer.read(10001))
+        raw = sys.stdin.buffer.read(16385)
+        if len(raw) > 16384:
+            raise AccessError("request_too_large")
+        payload = json.loads(raw)
         settings = Settings.load()
         async with asyncio.timeout(capture_timeout(settings, payload["url"]) - 5):
-            result = await capture(settings, payload["url"], payload.get("region"))
+            result = await capture(
+                settings, payload["url"], payload.get("region"),
+                allow_search=payload.get("allow_search", False),
+                capture_json_patterns=payload.get("capture_json_patterns"),
+            )
     except AccessError as error:
         result = {"error": str(error)}
     except TimeoutError:

@@ -33,8 +33,8 @@ class Discovery:
         if not query or len(query) > 500 or not 1 <= limit <= 20:
             raise ValueError("query must contain 1..500 characters; limit 1..20")
         domains = list(dict.fromkeys((d.lower().rstrip(".") for d in domains or [])))
-        if len(domains) > 8 or any(not re.fullmatch(r"[a-z0-9][a-z0-9.-]*\.[a-z]{2,63}", d) for d in domains):
-            raise ValueError("Use at most eight plain domains")
+        if len(domains) > 12 or any(not re.fullmatch(r"[a-z0-9][a-z0-9.-]*\.[a-z]{2,63}", d) for d in domains):
+            raise ValueError("Use at most twelve plain domains")
         phrase = '"' + query.replace('"', "") + '"' if exact else query
         queries = [(phrase + (" site:" + d if d else ""), [d] if d else []) for d in domains or [None]]
         rows = await asyncio.gather(

@@ -1,0 +1,95 @@
+name: everything-search-local
+
+services:
+  research-api:
+    build:
+      context: ../..
+      target: core
+    networks: [local-net]
+    ports:
+      - "127.0.0.1:8765:8765"
+    environment:
+      RESEARCH_HTTP_HOST: 0.0.0.0
+      RESEARCH_ALLOW_INTERNAL_HOSTS: "1"
+      RESEARCH_NO_AUTH: "1"
+      RESEARCH_PUBLIC_BASE_URL: http://127.0.0.1:8765
+      RESEARCH_DATABASE: /data/research.sqlite3
+      RESEARCH_NATIVE_CONNECTORS: "1"
+      RESEARCH_VERIFY_EGRESS: "0"
+      RESEARCH_RU_PROXY: ""
+      RESEARCH_EU_PROXY: ""
+      RESEARCH_SEARXNG_URL: http://searxng:8080
+      RESEARCH_EXTRACTION_URL: http://research-worker:8770
+      RESEARCH_BROWSER_URL: http://research-worker:8770
+      RESEARCH_WORKER_TOKEN: ${RESEARCH_WORKER_TOKEN:-local-dev-worker-token}
+    volumes:
+      - ./data-local/api:/data
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  browser-cdp:
+    build: ./chrome
+    networks:
+      local-net:
+        aliases: [research-worker]
+    # Docker creates a missing bind source as root on Linux.
+    user: "0:0"
+    environment:
+      HOME: /profile
+    volumes:
+      - ./data-local/chrome-profile:/profile
+    healthcheck:
+      test: [CMD, curl, -fsS, --max-time, "3", http://127.0.0.1:9222/json/version]
+      start_period: 15s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    init: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    shm_size: 1g
+
+  research-worker:
+    build:
+      context: ../..
+      target: worker
+    network_mode: service:browser-cdp
+    depends_on:
+      browser-cdp:
+        condition: service_healthy
+        restart: true
+    environment:
+      RESEARCH_WORKER_HOST: 0.0.0.0
+      RESEARCH_ALLOW_INTERNAL_HOSTS: "1"
+      RESEARCH_CDP_URL: http://127.0.0.1:9222
+      RESEARCH_VERIFY_EGRESS: "0"
+      RESEARCH_RU_PROXY: ""
+      RESEARCH_EU_PROXY: ""
+      RESEARCH_WORKER_TOKEN: ${RESEARCH_WORKER_TOKEN:-local-dev-worker-token}
+      RESEARCH_DATABASE: /data/research.sqlite3
+      HOME: /root
+    volumes:
+      - ./data-local/worker:/data
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8770/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    init: true
+    shm_size: 512m
+
+  searxng:
+    image: docker.io/searxng/searxng:latest
+    networks: [local-net]
+    volumes:
+      - ./searxng.local.yml:/etc/searxng/settings.yml:ro
+    environment:
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-local-dev-searxng-secret-change-for-prod}
+      FORCE_OWNERSHIP: "false"
+
+networks:
+  local-net:
+    driver: bridge

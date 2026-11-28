@@ -1,6 +1,7 @@
 """Conservative public structured-data extraction, never guessed snippet prices."""
 
 import hashlib
+import json
 import re
 import unicodedata
 from decimal import Decimal, InvalidOperation
@@ -8,6 +9,7 @@ from urllib.parse import parse_qs, parse_qsl, urlencode, urljoin, urlsplit, urlu
 
 from bs4 import BeautifulSoup
 
+from .discovery import canonical_url
 from .models import Evidence, Offer, Product
 from .network import AccessError, host_matches, validate_url
 
@@ -41,18 +43,46 @@ def model_matches(model, text):
     return not suffix or suffix[0] not in {"pro", "max", "plus", "ultra", "mini", "lite"}
 
 
+_ALTERNATIVE = r"/|\b(?:or|или)\b"
+_PAIRED_MODELS = re.compile(
+    rf"(?<!\w)([^\W\d_]*\d+)\s*(?:{_ALTERNATIVE})\s*([^\W\d_]*\d+)(?![\w.])"
+)
+_ACCESSORIES = {
+    "case", "cover", "remote", "mount", "чехол", "пульт", "кабель", "крепление", "адаптер",
+    "пленка", "стекло", "ремешок", "накладка", "бампер", "зарядка", "блок питания", "фильтр",
+    "насадка", "аккумулятор", "батарея", "сумка", "подставка", "кронштейн",
+    "charger", "filter", "strap", "protector", "bag", "stand",
+    "запасная", "запасной", "запасные", "запчасть", "запчасти", "сменные", "сменный", "сменная",
+    "амбушюры", "амбушюр", "дуга", "оголовье", "шарнир", "деталь", "ремонт", "держатель", "переходник",
+    "earpads", "earpad", "headband", "hinge", "cushion", "cushions", "replacement", "spare", "part", "parts",
+}
+
+
 def product_matches(model, name):
     if not model_matches(model, name):
         return False
     needle, text = normalize(model), normalize(name)
-    prefix, suffix = text.split(needle, 1)
-    accessories = {"case", "cover", "remote", "mount", "чехол", "пульт", "кабель", "крепление", "адаптер"}
+    prefix, suffix = re.split(r"(?<!\w)" + re.escape(needle) + r"(?!\w)", text, maxsplit=1)
+    if {"для", "for"}.intersection(prefix.split()[-3:]) - set(needle.split()):
+        return False
+    if not re.search(_ALTERNATIVE, model.casefold()):
+        raw = unicodedata.normalize("NFKC", name).casefold()
+        start = len(prefix.split())
+        end = start + len(needle.split())
+        for pair in _PAIRED_MODELS.finditer(raw):
+            left = len(normalize(raw[:pair.end(1)]).split()) - 1
+            right = len(normalize(raw[:pair.end(2)]).split()) - 1
+            if start <= left < end or start <= right < end:
+                return False
     bundles = {"kit", "bundle", "комплект", "набор"}
-    requested = set(needle.split())
-    if (set(prefix.split()) & accessories) - requested:
-        return False
-    if (set(suffix.split()) & (accessories | bundles)) - requested:
-        return False
+    clean_name = re.sub(r"\[[^\]]*\]", " ", name) if "[" not in model else name
+    clean_parts = re.split(r"(?<!\w)" + re.escape(needle) + r"(?!\w)", normalize(clean_name), maxsplit=1)
+    check_prefix, check_suffix = (clean_parts[0], clean_parts[1]) if len(clean_parts) == 2 else (prefix, suffix)
+    for extra, excluded in ((check_prefix, _ACCESSORIES), (check_suffix, _ACCESSORIES | bundles)):
+        extra = " " + extra.replace("ё", "е").strip() + " "
+        requested = " " + needle.replace("ё", "е") + " "
+        if any(f" {word} " in extra and f" {word} " not in requested for word in excluded):
+            return False
     return True
 
 
@@ -101,6 +131,63 @@ def available_priced_offer(offer):
     )
 
 
+def normalize_conditional_price(offer: Offer) -> Offer:
+    amount = offer.conditional_price
+    if amount is not None and amount.is_finite() and amount > 0 and (
+        offer.price_scope == "conditional" or not offer.price or offer.price == amount
+    ):
+        return offer.model_copy(update={
+            "price": offer.price or amount, "price_scope": "conditional", "currency": offer.currency or "RUB",
+        })
+    return offer
+
+
+def offer_matches_model(model: str, product: Product, offer: Offer) -> bool:
+    name = offer.title
+    if product.brand and not normalize(name).startswith(normalize(product.brand)):
+        name = f"{product.brand} {name}"
+    return product_matches(model, name)
+
+
+def offer_key(offer: Offer) -> tuple:
+    return (
+        canonical_url(offer.url), offer.seller, offer.currency, offer.price, offer.conditional_price,
+        offer.price_scope, offer.condition, json.dumps(offer.variants, sort_keys=True),
+    )
+
+
+def merge_product(products: dict[str, Product], product: Product) -> None:
+    if product.id not in products:
+        products[product.id] = product.model_copy(deep=True)
+        return
+    current = products[product.id]
+    current.sources.extend(source for source in product.sources if source not in current.sources)
+    current.brand = current.brand or product.brand
+    for key, value in product.specifications.items():
+        if key in current.specification_conflicts:
+            if value not in current.specification_conflicts[key]:
+                current.specification_conflicts[key].append(value)
+        elif key not in current.specifications:
+            current.specifications[key] = value
+        elif current.specifications[key] != value:
+            current.specification_conflicts[key] = [current.specifications.pop(key), value]
+    for key, values in product.specification_conflicts.items():
+        conflicts = current.specification_conflicts.setdefault(key, [])
+        if key in current.specifications:
+            conflicts.append(current.specifications.pop(key))
+        conflicts.extend(value for value in values if value not in conflicts)
+
+
+def dedupe_reviews(reviews):
+    unique = {}
+    for review in reviews:
+        key = (review.get("url"), review.get("text"))
+        if not review.get("text"):
+            key += (review.get("pros"), review.get("cons"))
+        unique.setdefault(key, review)
+    return list(unique.values())
+
+
 def title_color(title):
     text = title.casefold().replace("ё", "е")
     match = re.search(r"(?<!\w)(?:бежево[-\s]зеленый|темно[-\s]синий|белый|черный|синий|зеленый)(?!\w)", text)
@@ -110,6 +197,7 @@ def title_color(title):
 class MarketplaceAdapter:
     name = "public_web"
     domain = ""
+    offer_path = ""
 
     def search_url(self, query):
         return None
@@ -118,7 +206,7 @@ class MarketplaceAdapter:
         return []
 
     def is_offer_url(self, url):
-        return True
+        return not self.offer_path or bool(re.search(self.offer_path, urlsplit(url).path))
 
     def is_product_page(self, url):
         return self.is_offer_url(url)
@@ -458,10 +546,49 @@ class YandexMarketAdapter(MarketplaceAdapter):
         return products
 
     def is_offer_url(self, url):
-        return bool(re.search(r"/(?:product--[^/]+/\d+|card/[^/]+/\d+|offer/[^/?]+)", url))
+        return bool(re.search(r"/(?:product(?:--[^/]+)?/\d+|card/[^/]+/\d+|offer/[^/?]+)", url))
 
 
-ADAPTERS = [OzonAdapter(), AvitoAdapter(), YandexMarketAdapter()]
+class WildberriesAdapter(MarketplaceAdapter):
+    name, domain = "wildberries", "wildberries.ru"
+    offer_path = r"/catalog/\d+/detail\.aspx/?$"
+
+
+class AliExpressAdapter(MarketplaceAdapter):
+    name, domain = "aliexpress", "aliexpress.ru"
+    offer_path = r"/item/\d+"
+
+
+class DnsAdapter(MarketplaceAdapter):
+    name, domain = "dns", "dns-shop.ru"
+    offer_path = r"/product/[a-zA-Z0-9_-]+"
+
+
+class CitilinkAdapter(MarketplaceAdapter):
+    name, domain = "citilink", "citilink.ru"
+    offer_path = r"/product/[^/]+"
+
+
+class MegamarketAdapter(MarketplaceAdapter):
+    name, domain = "megamarket", "megamarket.ru"
+    offer_path = r"/catalog/details/[^/]+"
+
+
+class LamodaAdapter(MarketplaceAdapter):
+    name, domain = "lamoda", "lamoda.ru"
+    offer_path = r"/p/[a-zA-Z0-9_-]+"
+
+
+class DetmirAdapter(MarketplaceAdapter):
+    name, domain = "detsky_mir", "detmir.ru"
+    offer_path = r"/product/index/id/\d+(?:/|$)"
+
+
+ADAPTERS = [
+    OzonAdapter(), AvitoAdapter(), YandexMarketAdapter(), WildberriesAdapter(), AliExpressAdapter(),
+    DnsAdapter(), CitilinkAdapter(), MegamarketAdapter(), LamodaAdapter(), DetmirAdapter(),
+]
+MARKETPLACE_DOMAINS = {adapter.name: adapter.domain for adapter in ADAPTERS}
 
 
 def adapter_for(url):

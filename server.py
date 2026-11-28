@@ -41,7 +41,12 @@ mcp = FastMCP(
         "Avoid inferring defect rates. Unattributed Reddit excerpts can mix posts and replies."
         " For multi-source research always specify mode=quick or mode=deep. "
         "For shopping use search_products or compare_prices with an exact model and delivery city. "
-        "Only fetched page data may establish price or stock. State conditional prices and failed reads."
+        "Supported marketplaces are wildberries, ozon, yandex_market, avito, aliexpress, dns, "
+        "citilink, megamarket, lamoda, and detsky_mir. "
+        "Use compare_prices recommendations for public, conditional and used prices, "
+        "and best_offer for confirmed city delivery totals. "
+        "Use get_product_reviews for marketplace buyer reviews and model-specific forum excerpts. "
+        "State price conditions, availability evidence and failed sources."
         " Present shopping results only from verified in-stock offers with a positive price and currency. "
         "Keep discovery candidates and excluded pages in diagnostics."
     ),
@@ -276,12 +281,17 @@ register_tools(mcp)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--http", action="store_true", help="Serve HTTP on 127.0.0.1:8765/mcp.")
+    parser.add_argument("--http", action="store_true", help="Serve the HTTP gateway (default 127.0.0.1:8765).")
+    parser.add_argument(
+        "--no-auth", action="store_true",
+        help="Allow local HTTP MCP/REST requests without API tokens (use only on trusted loopback/LAN).",
+    )
+    parser.add_argument("--host", help="HTTP bind address (defaults to the configured address).")
     parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args()
     mcp.settings.port = args.port
     if args.http:
         from research_v2.auth import serve_http
-        serve_http(mcp, args.port)
+        serve_http(mcp, args.port, host=args.host, no_auth=args.no_auth)
     else:
         mcp.run(transport="stdio")

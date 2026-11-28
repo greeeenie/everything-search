@@ -6,6 +6,7 @@ __pycache__/
 .env
 *.sqlite*
 data/
+data-local/
 *.pem
 *.key
 artifacts/private/
